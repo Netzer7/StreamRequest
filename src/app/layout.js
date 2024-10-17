@@ -1,5 +1,5 @@
 import { AuthProvider } from './context/AuthContext'
-import Navigation from '@/components/navigation'
+import Navigation from '@/components/Navigation'
 import './globals.css'
 
 export const metadata = {

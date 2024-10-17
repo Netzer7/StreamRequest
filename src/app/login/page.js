@@ -9,17 +9,27 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const { login } = useAuth()
+  const { login, loginWithGoogle } = useAuth()
   const router = useRouter()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setError('')  // Clear any existing errors
+    setError('')
     try {
       await login(email, password)
       router.push('/dashboard')
     } catch (err) {
       setError('Failed to log in: ' + err.message)
+    }
+  }
+
+  const handleGoogleSignIn = async () => {
+    setError('')
+    try {
+      await loginWithGoogle()
+      router.push('/dashboard')
+    } catch (err) {
+      setError('Failed to sign in with Google: ' + err.message)
     }
   }
 
@@ -44,6 +54,10 @@ export default function Login() {
         />
         <button type="submit">Log In</button>
       </form>
+      <div className="divider">OR</div>
+      <button onClick={handleGoogleSignIn} className="google-button">
+        Sign in with Google
+      </button>
       <p>
         Don't have an account? <Link href="/signup">Sign Up</Link>
       </p>
