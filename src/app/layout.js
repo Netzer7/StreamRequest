@@ -1,23 +1,19 @@
 import { AuthProvider } from './context/AuthContext'
+import { NotificationProvider } from './context/NotificationContext'
 import Navigation from '@/components/Navigation'
+import Notification from '@/components/Notification'
 import './globals.css'
-
-export const metadata = {
-  title: 'StreamRequest',
-  description: 'Manage your Plex media requests',
-}
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
         <AuthProvider>
-          <header>
+          <NotificationProvider>
             <Navigation />
-          </header>
-          <main className="container">
-            {children}
-          </main>
+            <Notification />
+            <main>{children}</main>
+          </NotificationProvider>
         </AuthProvider>
       </body>
     </html>
