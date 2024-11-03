@@ -70,29 +70,62 @@ export async function POST(request) {
           },
         }
       );
-    }
+    } else {
+   // This is a media request - first find the user
+   const usersRef = adminDb.collection('users');
+   const userQuery = await usersRef
+     .where('phoneNumber', '==', body.From)
+     .where('status', '==', 'active')
+     .limit(1)
+     .get();
 
-    // If message isn't 'yes', send instructions
-    return new NextResponse(
-      '<?xml version="1.0" encoding="UTF-8"?><Response><Message>To confirm registration, please reply with YES.</Message></Response>',
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'text/xml',
-        },
-      }
-    );
+   if (userQuery.empty) {
+     return new NextResponse(
+       '<?xml version="1.0" encoding="UTF-8"?><Response><Message>You are not registered to make media requests. Please contact your media server administrator.</Message></Response>',
+       {
+         status: 200,
+         headers: {
+           'Content-Type': 'text/xml',
+         },
+       }
+     );
+   }
 
-  } catch (error) {
-    console.error('Webhook error:', error);
-    return new NextResponse(
-      '<?xml version="1.0" encoding="UTF-8"?><Response><Message>An error occurred. Please try again later.</Message></Response>',
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'text/xml',
-        },
-      }
-    );
-  }
+   const user = userQuery.docs[0];
+   const userData = user.data();
+
+   // Create the media request
+   await adminDb.collection('mediaRequests').add({
+     title: body.Body,
+     requesterId: user.id,
+     requesterPhone: body.From,
+     requesterNickname: userData.nickname || null,
+     managerId: userData.managerId,
+     status: 'pending',
+     createdAt: new Date().toISOString(),
+   });
+
+   // Send confirmation
+   return new NextResponse(
+     '<?xml version="1.0" encoding="UTF-8"?><Response><Message>Your media request has been submitted and will be reviewed by your media server administrator.</Message></Response>',
+     {
+       status: 200,
+       headers: {
+         'Content-Type': 'text/xml',
+       },
+     }
+   );
+ }
+} catch (error) {
+ console.error('Webhook error:', error);
+ return new NextResponse(
+   '<?xml version="1.0" encoding="UTF-8"?><Response><Message>An error occurred. Please try again later.</Message></Response>',
+   {
+     status: 500,
+     headers: {
+       'Content-Type': 'text/xml',
+     },
+   }
+ );
+}
 }
