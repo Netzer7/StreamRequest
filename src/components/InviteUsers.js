@@ -4,6 +4,7 @@ import { useAuth } from '@/app/context/AuthContext';
 const InviteUsers = () => {
   const { user } = useAuth();
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [nickname, setNickname] = useState('');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -24,6 +25,12 @@ const InviteUsers = () => {
     e.preventDefault();
     setIsLoading(true);
 
+    if (!nickname.trim()) {
+      setMessage({ type: 'error', text: 'Please provide a nickname for the user' });
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch('/api/invite', {
         method: 'POST',
@@ -32,7 +39,8 @@ const InviteUsers = () => {
         },
         body: JSON.stringify({
           phoneNumber: phoneNumber,
-          managerId: user.uid
+          managerId: user.uid,
+          nickname: nickname.trim()
         }),
       });
 
@@ -41,6 +49,7 @@ const InviteUsers = () => {
       if (response.ok) {
         setMessage({ type: 'success', text: 'Invitation sent! User will be registered when they reply YES.' });
         setPhoneNumber('');
+        setNickname('');
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to send invitation' });
       }
@@ -55,9 +64,23 @@ const InviteUsers = () => {
     <div className="bg-secondary p-6 rounded-lg shadow-lg max-w-md mx-auto">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-primary">Invite Users</h2>
+        <p className="text-sm text-gray-400 mt-2">Set a nickname for your user to personalize their experience.</p>
       </div>
       <div className="p-4">
         <form onSubmit={handleInvite} className="space-y-4">
+          <div className="input-group">
+            <label htmlFor="nickname" className="block mb-2">Nickname</label>
+            <input
+              type="text"
+              id="nickname"
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              placeholder="Enter a nickname"
+              required
+              className="w-full p-2 rounded-md bg-opacity-10 bg-white border border-secondary"
+              maxLength={20}
+            />
+          </div>
           <div className="input-group">
             <label htmlFor="phoneNumber" className="block mb-2">Phone Number</label>
             <input

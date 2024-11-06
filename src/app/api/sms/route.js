@@ -1,4 +1,3 @@
-// app/api/sms/route.js
 import { NextResponse } from 'next/server';
 import { db } from '@/firebase';
 import { collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
