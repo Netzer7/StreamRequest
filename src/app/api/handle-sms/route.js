@@ -10,6 +10,38 @@ const twilioClient = twilio(
 
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
+// Constants for string lengths
+const MAX_TITLE_LENGTH = 30;
+const MAX_OVERVIEW_LENGTH = 150;
+
+// Helper function to truncate strings with ellipsis
+function truncateString(str, maxLength) {
+  if (!str) return '';
+  if (str.length <= maxLength) return str;
+  return str.substring(0, maxLength - 3) + '...';
+}
+
+// Helper function to check if message is a valid selection
+function isValidSelection(message) {
+  // Clean the message and check if it's either a number or starts with "confirm"
+  const cleanMessage = message.trim().toLowerCase();
+  
+  // Check if it's just a number
+  if (/^[1-5]$/.test(cleanMessage)) {
+    return parseInt(cleanMessage) - 1;
+  }
+  
+  // Check if it starts with "confirm" followed by a number
+  if (cleanMessage.startsWith('confirm')) {
+    const num = cleanMessage.split(/\s+/)[1];
+    if (/^[1-5]$/.test(num)) {
+      return parseInt(num) - 1;
+    }
+  }
+  
+  return null;
+}
+
 export async function POST(request) {
   try {
     const { Body: messageBody, From: phoneNumber } = await request.json();
@@ -25,9 +57,10 @@ export async function POST(request) {
       );
     }
 
-    // Handle confirmation messages (when user is selecting from search results)
-    if (messageBody.toLowerCase().startsWith('confirm')) {
-      return handleConfirmation(phoneNumber, messageBody, userDoc.data());
+    // Check if the message is a selection
+    const selectionIndex = isValidSelection(messageBody);
+    if (selectionIndex !== null) {
+      return handleConfirmation(phoneNumber, selectionIndex, userDoc.data());
     }
 
     // Handle new search requests
@@ -82,7 +115,7 @@ async function searchTMDB(query) {
         releaseYear: item.media_type === 'movie' 
           ? (item.release_date || '').substring(0, 4)
           : (item.first_air_date || '').substring(0, 4),
-        overview: item.overview?.substring(0, 200) // Truncate long descriptions
+        overview: truncateString(item.overview, MAX_OVERVIEW_LENGTH)
       }))
       .slice(0, 5); // Limit to top 5 results
   } catch (error) {
@@ -91,24 +124,37 @@ async function searchTMDB(query) {
   }
 }
 
-async function handleConfirmation(phoneNumber, message, userData) {
+function formatSearchResults(results) {
+  const formattedResults = results
+    .map((item, index) => {
+      const title = truncateString(item.title, MAX_TITLE_LENGTH);
+      const year = item.releaseYear ? ` (${item.releaseYear})` : '';
+      const type = item.mediaType === 'movie' ? 'Movie' : 'TV Show';
+      return `${index + 1}. ${title}${year} - ${type}`;
+    })
+    .join('\n');
+
+  return `Found these matches:\n\n${formattedResults}\n\nEnter a number (1-${results.length}) to select`;
+}
+
+
+async function handleConfirmation(phoneNumber, selectionIndex, userData) {
   try {
-    const selectionNumber = parseInt(message.split(' ')[1]) - 1; // Convert to 0-based index
     const pendingSearch = userData.pendingSearch;
 
     if (!pendingSearch || !pendingSearch.searchResults) {
       return sendMessage(
         phoneNumber,
-        'No pending search found. Please start a new request.'
+        'No pending search found. Please search for something first.'
       );
     }
 
-    const selectedMedia = pendingSearch.searchResults[selectionNumber];
+    const selectedMedia = pendingSearch.searchResults[selectionIndex];
 
     if (!selectedMedia) {
       return sendMessage(
         phoneNumber,
-        'Invalid selection. Please choose a number from the list.'
+        `Invalid number. Please enter a number between 1 and ${pendingSearch.searchResults.length}.`
       );
     }
 
@@ -130,7 +176,7 @@ async function handleConfirmation(phoneNumber, message, userData) {
 
     return sendMessage(
       phoneNumber,
-      `Your request for "${selectedMedia.title}" has been submitted! We'll notify you when it's been processed.`
+      `Your request for "${truncateString(selectedMedia.title, MAX_TITLE_LENGTH)}" has been submitted! We'll notify you when it's been processed.`
     );
 
   } catch (error) {
@@ -140,18 +186,6 @@ async function handleConfirmation(phoneNumber, message, userData) {
       'Sorry, there was an error processing your selection. Please try again.'
     );
   }
-}
-
-function formatSearchResults(results) {
-  const formattedResults = results
-    .map((item, index) => {
-      const year = item.releaseYear ? ` (${item.releaseYear})` : '';
-      const type = item.mediaType === 'movie' ? 'Movie' : 'TV Show';
-      return `${index + 1}. ${item.title}${year} - ${type}`;
-    })
-    .join('\n');
-
-  return `Found these matches:\n\n${formattedResults}\n\nReply with "confirm X" to request (e.g., "confirm 1" for the first option)`;
 }
 
 async function sendMessage(to, body) {

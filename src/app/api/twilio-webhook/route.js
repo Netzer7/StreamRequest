@@ -23,8 +23,8 @@ export async function POST(request) {
       return handleRegistration(body.From);
     }
     
-    // Handle media request confirmation
-    if (messageBody.startsWith('confirm')) {
+    // Check if the message is a number (1-5)
+    if (/^[1-5]$/.test(messageBody)) {
       return handleConfirmation(body.From, messageBody);
     }
     
@@ -62,7 +62,7 @@ async function handleRegistration(phoneNumber) {
     const pendingUser = query.docs[0];
     const pendingData = pendingUser.data();
     
-    console.log('Found pending user data:', pendingData); // Debug log
+    console.log('Found pending user data:', pendingData);
 
     // Create new user document with null check for nickname
     const newUserData = {
@@ -77,7 +77,7 @@ async function handleRegistration(phoneNumber) {
       newUserData.nickname = pendingData.nickname;
     }
 
-    console.log('Creating new user with data:', newUserData); // Debug log
+    console.log('Creating new user with data:', newUserData);
 
     await adminDb.collection('users').add(newUserData);
 
@@ -90,7 +90,7 @@ async function handleRegistration(phoneNumber) {
     return createTwiMLResponse('Registration confirmed! You can now send media requests to this number.');
   } catch (error) {
     console.error('Registration error:', error);
-    throw error; // Re-throw to be caught by the main error handler
+    throw error;
   }
 }
 
@@ -148,11 +148,11 @@ async function handleConfirmation(phoneNumber, message) {
     return createTwiMLResponse('No pending search found. Please start a new request.');
   }
 
-  const selectionNumber = parseInt(message.split(' ')[1]) - 1;
+  const selectionNumber = parseInt(message) - 1;
   const selectedMedia = userData.pendingSearch.searchResults[selectionNumber];
 
   if (!selectedMedia) {
-    return createTwiMLResponse('Invalid selection. Please choose a number from the list.');
+    return createTwiMLResponse(`Invalid selection. Please enter a number between 1 and ${userData.pendingSearch.searchResults.length}.`);
   }
 
   // Create the media request
@@ -208,6 +208,10 @@ async function searchTMDB(query) {
           mediaItem.rating = item.vote_average.toFixed(1);
         }
 
+        if (item.poster_path) {
+          mediaItem.posterPath = item.poster_path;
+        }
+
         return mediaItem;
       })
       .slice(0, 5);
@@ -228,7 +232,7 @@ function formatSearchResults(results) {
     })
     .join('\n');
 
-  return `Best matches found:\n\n${formattedResults}\nReply with "confirm X" to request (e.g., "confirm 1" for the first option)`;
+  return `Best matches found:\n\n${formattedResults}\nEnter a number (1-${results.length}) to select`;
 }
 
 function createTwiMLResponse(message) {
