@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
+  <!-- Background Elements -->
+  <defs>
+    <linearGradient id="phoneGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00a0a0;stop-opacity:0.1"/>
+      <stop offset="100%" style="stop-color:#00a0a0;stop-opacity:0"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Subtle Background Circle -->
+  <circle cx="600" cy="400" r="350" fill="none" stroke="#00a0a0" stroke-width="20" />
+  
+  <!-- Left Phone -->
+  <g transform="translate(300,100)">
+    <!-- Phone Glow -->
+    <rect x="-10" y="-10" width="270" height="520" rx="45" fill="url(#phoneGlow)" filter="blur(20px)"/>
+    
+    <!-- Phone Frame -->
+    <rect x="0" y="0" width="250" height="500" rx="40" fill="#2a2a2a" stroke="#404040" stroke-width="2"/>
+    <rect x="12" y="12" width="226" height="476" rx="32" fill="#ffffff"/>
+    
+    <!-- Notch -->
+    <rect x="85" y="0" width="80" height="24" rx="12" fill="#2a2a2a"/>
+    
+    <!-- Messages -->
+    <g transform="translate(24,50)">
+      <!-- Timestamp -->
+      <text x="102" y="20" fill="#666666" font-size="12" text-anchor="middle" font-family="Arial">Today</text>
+      
+      <!-- Incoming Message -->
+      <g transform="translate(0,40)">
+        <rect x="0" y="0" width="160" height="36" rx="18" fill="#f0f0f0"/>
+        <text x="15" y="24" fill="#333333" font-size="14" font-family="Arial">Hey! I'd like to request</text>
+      </g>
+      
+      <!-- Outgoing Message -->
+      <g transform="translate(40,90)">
+        <rect x="0" y="0" width="160" height="36" rx="18" fill="#00a0a0"/>
+        <text x="15" y="24" fill="#ffffff" font-size="14" font-family="Arial">What would you like?</text>
+      </g>
+      
+      <!-- Incoming Message -->
+      <g transform="translate(0,140)">
+        <rect x="0" y="0" width="160" height="36" rx="18" fill="#f0f0f0"/>
+        <text x="15" y="24" fill="#333333" font-size="14" font-family="Arial">The new Dune movie!</text>
+      </g>
+    </g>
+    
+    <!-- Time Label -->
+    <g transform="translate(-50,250)">
+      <text x="-220" y="0" fill="#00a0a0" font-size="28" font-weight="bold" font-family="Arial">Quick and Easy</text>
+      <text x="-220" y="30" fill="#ffffff" font-size="20" font-family="Arial">requests</text>
+    </g>
+  </g>
+  
+  <!-- Right Phone -->
+  <g transform="translate(650,100)">
+    <!-- Phone Glow -->
+    <rect x="-10" y="-10" width="270" height="520" rx="45" fill="url(#phoneGlow)" filter="blur(20px)"/>
+    
+    <!-- Phone Frame -->
+    <rect x="0" y="0" width="250" height="500" rx="40" fill="#2a2a2a" stroke="#404040" stroke-width="2"/>
+    <rect x="12" y="12" width="226" height="476" rx="32" fill="#ffffff"/>
+    
+    <!-- Notch -->
+    <rect x="85" y="0" width="80" height="24" rx="12" fill="#2a2a2a"/>
+    
+    <!-- Content -->
+    <g transform="translate(24,50)">
+      <!-- Timestamp -->
+      <text x="102" y="20" fill="#666666" font-size="12" text-anchor="middle" font-family="Arial">Today</text>
+      
+      <!-- Success Notification -->
+      <g transform="translate(0,40)">
+        <rect x="0" y="0" width="202" height="80" rx="15" fill="#00a0a0"/>
+        <text x="15" y="30" fill="#ffffff" font-size="16" font-weight="bold" font-family="Arial">Request Approved! 🎉</text>
+        <text x="15" y="55" fill="#ffffff" font-size="14" font-family="Arial">Your request for "Dune" has</text>
+        <text x="15" y="75" fill="#ffffff" font-size="14" font-family="Arial">been approved!</text>
+      </g>
+      
+      <!-- Response Message -->
+      <g transform="translate(0,140)">
+        <rect x="0" y="0" width="160" height="36" rx="18" fill="#f0f0f0"/>
+        <text x="15" y="24" fill="#333333" font-size="14" font-family="Arial">Thanks! Can't wait! 🎬</text>
+      </g>
+    </g>
+    
+    <!-- Time Label -->
+    <g transform="translate(270,250)">
+      <text x="54" y="0" fill="#00a0a0" font-size="28" font-weight="bold" font-family="Arial">Simple Media</text>
+      <text x="54" y="30" fill="#ffffff" font-size="20" font-family="Arial">management</text>
+    </g>
+  </g>
+  
+  <!-- Connecting Line -->
+  <path d="M550,350 C600,350 600,350 650,350" 
+        stroke="#00a0a0" 
+        stroke-width="2" 
+        stroke-dasharray="5,5"
+        stroke-opacity="0.6"/>
+</svg>

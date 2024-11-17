@@ -165,6 +165,7 @@ h1, h2, h3 {
 }
 
 .hero-title {
+  color:  #ffffff;
   font-size: 3.5rem;
   margin-bottom: 20px;
   text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
@@ -175,6 +176,7 @@ h1, h2, h3 {
   max-width: 600px;
   margin: 0 auto 30px;
   line-height: 1.6;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
 }
 
 /* Button Styles */
@@ -637,4 +639,55 @@ input[type="text"], input[type="email"], input[type="password"] {
 
 body.modal-open {
   overflow: hidden;
+}
+
+.embla {
+  overflow: hidden;
+  position: relative;
+}
+
+.embla__container {
+  display: flex;
+  transition: transform 100ms ease-out;
+}
+
+.embla__slide {
+  flex: 0 0 250px;
+  min-width: 0;
+  position: relative;
+  transition: opacity 200ms ease;
+  margin-right: 6rem;
+}
+
+@media (min-width: 640px) {
+  .embla__slide {
+    flex: 0 0 300px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .embla__slide {
+    flex: 0 0 350px;
+  }
+}
+
+.embla::before,
+.embla::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 100px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.embla::before {
+  left: 0;
+  background: linear-gradient(to right, rgba(31, 31, 31, 1), transparent);
+}
+
+.embla::after {
+  right: 0;
+  background: linear-gradient(to left, rgba(31, 31, 31, 1), transparent);
 }
