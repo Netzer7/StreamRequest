@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/app/context/AuthContext'
 import { useNotification } from '@/app/context/NotificationContext'
 import { useRouter } from 'next/navigation'
@@ -18,14 +18,46 @@ export default function Signup() {
   // UI states
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
-  const [stage, setStage] = useState('account') // 'account' or 'phone'
+  const [stage, setStage] = useState('account')
   const [isVerifying, setIsVerifying] = useState(false)
-  const [isPhoneVerified, setIsPhoneVerified] = useState(false)
-  const [currentUser, setCurrentUser] = useState(null)
+  const [temporaryData, setTemporaryData] = useState(null)
+  
+  // Verification cooldown states
+  const [cooldownTime, setCooldownTime] = useState(0)
+  const [canResend, setCanResend] = useState(true)
+  const [attempts, setAttempts] = useState(0)
+  const COOLDOWN_DURATION = 180 // 3 minutes in seconds
+  const MAX_ATTEMPTS = 3
   
   const { signup, loginWithGoogle } = useAuth()
   const { showNotification } = useNotification()
   const router = useRouter()
+
+  // Cooldown timer effect
+  useEffect(() => {
+    let timer
+    if (cooldownTime > 0) {
+      timer = setInterval(() => {
+        setCooldownTime(time => {
+          if (time <= 1) {
+            setCanResend(true)
+            return 0
+          }
+          return time - 1
+        })
+      }, 1000)
+    }
+
+    return () => {
+      if (timer) clearInterval(timer)
+    }
+  }, [cooldownTime])
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
 
   const formatPhoneNumber = (value) => {
     const number = value.replace(/[^\d]/g, '')
@@ -49,6 +81,11 @@ export default function Signup() {
       showNotification('Please enter a valid phone number', 'error')
       return
     }
+
+    if (attempts >= MAX_ATTEMPTS) {
+      showNotification('Maximum verification attempts reached. Please try again later.', 'error')
+      return
+    }
   
     setIsLoading(true)
     try {
@@ -67,6 +104,9 @@ export default function Signup() {
       }
   
       setIsVerifying(true)
+      setAttempts(prev => prev + 1)
+      setCanResend(false)
+      setCooldownTime(COOLDOWN_DURATION)
       showNotification('Verification code sent!', 'success')
     } catch (error) {
       console.error('Verification error:', error)
@@ -79,7 +119,7 @@ export default function Signup() {
   const verifyCode = async () => {
     setIsLoading(true)
     try {
-      // First verify the code
+      // First verify the phone number
       const response = await fetch('/api/verify-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -94,35 +134,28 @@ export default function Signup() {
       if (!response.ok) {
         throw new Error(data.error || 'Invalid verification code')
       }
-  
-      // Debug logging
-      console.log('Current user:', currentUser)
-  
-      if (!currentUser?.uid) {
-        throw new Error('No authenticated user found')
+
+      // After phone verification succeeds, create the account
+      let userCredential;
+      if (temporaryData.isGoogle) {
+        userCredential = await loginWithGoogle()
+      } else {
+        userCredential = await signup(temporaryData.email, temporaryData.password)
       }
-  
-      // Try to create/update profile
-      await createUserProfile(currentUser.uid, {
-        email: currentUser.email,
+
+      // Create the user profile with verified phone
+      await createUserProfile(userCredential.user.uid, {
+        email: userCredential.user.email,
         phoneNumber: phoneNumber.replace(/\D/g, ''),
         phoneVerified: true,
-        lastUpdated: new Date().toISOString()
+        createdAt: new Date().toISOString()
       })
   
-      setIsPhoneVerified(true)
-      showNotification('Phone number verified successfully!', 'success')
+      showNotification('Account created successfully!', 'success')
       router.push('/dashboard')
     } catch (error) {
-      console.error('Verification error:', {
-        message: error.message,
-        code: error.code,
-        user: currentUser?.uid
-      })
-      showNotification(
-        `Error: ${error.message}. Please try again or contact support.`, 
-        'error'
-      )
+      console.error('Account creation error:', error)
+      showNotification(error.message, 'error')
     } finally {
       setIsLoading(false)
     }
@@ -137,91 +170,94 @@ export default function Signup() {
       return
     }
 
-    setIsLoading(true)
-    try {
-      const userCredential = await signup(email, password)
-      setCurrentUser(userCredential.user)
-      setStage('phone')
-      showNotification('Account created! Please verify your phone number.', 'success')
-    } catch (error) {
-      setError('Failed to create an account: ' + error.message)
-      showNotification('Failed to create an account', 'error')
-    } finally {
-      setIsLoading(false)
-    }
+    // Store the credentials temporarily
+    setTemporaryData({
+      email,
+      password,
+      isGoogle: false
+    })
+    
+    // Move to phone verification
+    setStage('phone')
   }
 
   const handleGoogleSignIn = async () => {
     setError('')
-    setIsLoading(true)
-    try {
-      const result = await loginWithGoogle()
-      setCurrentUser(result.user)
-      setStage('phone')
-      showNotification('Signed in with Google! Please verify your phone number.', 'success')
-    } catch (err) {
-      setError('Failed to sign in with Google: ' + err.message)
-      showNotification('Failed to sign in with Google', 'error')
-    } finally {
-      setIsLoading(false)
-    }
+    
+    // Store that we're using Google sign in
+    setTemporaryData({
+      isGoogle: true
+    })
+    
+    // Move to phone verification
+    setStage('phone')
   }
 
   if (stage === 'phone') {
     return (
-      <div className="container mx-auto max-w-md px-4">
-        <div className="bg-white rounded-lg shadow-md p-6 mt-8">
-          <h1 className="text-2xl font-bold mb-6 text-center">Verify Your Phone</h1>
-          {error && <p className="text-red-500 mb-4 text-sm">{error}</p>}
+      <div className="container">
+        <div className="card login-card">
+          <h1 className="card-title">Verify Your Phone</h1>
+          {error && <p className="error">{error}</p>}
           
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700">
-                Phone Number
-              </label>
-              <div className="flex gap-2">
+          <div className="login-form">
+            <div className="input-group">
+              <label htmlFor="phoneNumber">Phone Number</label>
+              <div className="flex flex-col " style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <input
                   id="phoneNumber"
                   type="tel"
                   value={phoneNumber}
                   onChange={handlePhoneChange}
                   placeholder="(555) 555-5555"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
-                  required
                   disabled={isLoading || isVerifying}
+                  className="mb-20"
                 />
                 <button
                   type="button"
                   onClick={requestVerificationCode}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50"
-                  disabled={isLoading || isVerifying || !validatePhoneNumber(phoneNumber)}
+                  className="button"
+                  disabled={isLoading || (!canResend && isVerifying) || !validatePhoneNumber(phoneNumber)}
                 >
-                  {isLoading ? 'Sending...' : 'Send Code'}
+                  {isLoading ? 'Sending...' : 
+                   !canResend && cooldownTime > 0 ? `Resend in ${formatTime(cooldownTime)}` :
+                   isVerifying ? 'Resend Code' : 'Send Code'}
                 </button>
               </div>
+              {attempts > 0 && attempts < MAX_ATTEMPTS && (
+                <p className="text-sm text-gray-400 mt-1">
+                  {MAX_ATTEMPTS - attempts} attempts remaining
+                </p>
+              )}
             </div>
 
             {isVerifying && (
-              <div className="space-y-2">
-                <label htmlFor="verificationCode" className="block text-sm font-medium text-gray-700">
-                  Verification Code
-                </label>
+              <div className="input-group">
+                <label htmlFor="verificationCode">Verification Code</label>
                 <input
                   id="verificationCode"
+                  name="verification-code" 
                   type="text"
                   value={verificationCode}
                   onChange={(e) => setVerificationCode(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  required
                   disabled={isLoading}
+                  autoComplete="one-time-code"
+                  inputMode="numeric"
+                  pattern="\d*"
+                  maxLength="6"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
+                  data-form-type="other"
+                  aria-label="Enter verification code"
                 />
                 <button
                   type="button"
                   onClick={verifyCode}
-                  className="w-full mt-2 py-2 px-4 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50"
+                  className="button"
                   disabled={isLoading || !verificationCode}
                 >
-                  Verify Code
+                  Create Account
                 </button>
               </div>
             )}
@@ -232,51 +268,42 @@ export default function Signup() {
   }
 
   return (
-    <div className="container mx-auto max-w-md px-4">
-      <div className="bg-white rounded-lg shadow-md p-6 mt-8">
-        <h1 className="text-2xl font-bold mb-6 text-center">Sign Up</h1>
-        {error && <p className="text-red-500 mb-4 text-sm">{error}</p>}
-        <form onSubmit={handleInitialSignup} className="space-y-4">
-          <div className="space-y-2">
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-              Email
-            </label>
+    <div className="container">
+      <div className="card login-card">
+        <h1 className="card-title">Sign Up</h1>
+        {error && <p className="error">{error}</p>}
+        <form onSubmit={handleInitialSignup} className="login-form">
+          <div className="input-group">
+            <label htmlFor="email">Email</label>
             <input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
               required
               disabled={isLoading}
             />
           </div>
 
-          <div className="space-y-2">
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-              Password
-            </label>
+          <div className="input-group">
+            <label htmlFor="password">Password</label>
             <input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
               required
               disabled={isLoading}
             />
           </div>
 
-          <div className="space-y-2">
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-              Confirm Password
-            </label>
+          <div className="input-group">
+            <label htmlFor="confirmPassword">Confirm Password</label>
             <input
               id="confirmPassword"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
               required
               disabled={isLoading}
             />
@@ -284,30 +311,25 @@ export default function Signup() {
 
           <button
             type="submit"
-            className="w-full py-2 px-4 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50"
+            className="button"
             disabled={isLoading}
           >
-            {isLoading ? 'Creating Account...' : 'Continue'}
+            Continue
           </button>
         </form>
 
-        <div className="mt-4 text-center">
-          <span className="px-4 bg-white text-gray-500">OR</span>
-        </div>
+        <div className="divider">OR</div>
 
         <button
           onClick={handleGoogleSignIn}
-          className="w-full mt-4 py-2 px-4 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+          className="button google-button"
           disabled={isLoading}
         >
           Continue with Google
         </button>
 
-        <p className="mt-4 text-center text-sm text-gray-600">
-          Already have an account?{' '}
-          <Link href="/login" className="text-blue-500 hover:text-blue-600">
-            Log In
-          </Link>
+        <p className="auth-switch">
+          Already have an account? <Link href="/login">Log In</Link>
         </p>
       </div>
     </div>
