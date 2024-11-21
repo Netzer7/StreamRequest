@@ -41,7 +41,10 @@ export default function Login() {
 
   return (
     <div className="container">
-      <div className="card login-card">
+      <div className="card login-card" style={{
+        backgroundColor:  'rgba(74, 74, 74, 0.2)',
+        border: `1px solid #00a0a0`
+      }}>
         <h1 className="card-title">Login</h1>
         {error && <p className="error">{error}</p>}
         <form onSubmit={handleSubmit} className="login-form">
