@@ -1,7 +1,52 @@
+'use client'
+
 import React, { useState } from 'react';
 import { useAuth } from '@/app/context/AuthContext';
+import { createPortal } from 'react-dom';
 
-const InviteUsers = () => {
+const Modal = ({ children }) => {
+  return createPortal(
+    <div className="modal-overlay">
+      <div 
+        style={{ 
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'auto',
+          padding: '2rem'
+        }}
+      >
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-lg" 
+          style={{ position: 'fixed' }}
+        />
+        <div 
+          className="login-card relative z-50"
+          style={{ 
+            backgroundColor: 'rgb(34, 34, 34)',
+            border: '1px solid rgb(0, 160, 160)',
+            borderRadius: '8px',
+            width: '100%',
+            maxWidth: '65%',
+            margin: '0 auto',
+            padding: '2rem'
+          }}
+        >
+          {children}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
+const InviteUsers = ({ onClose }) => {
   const { user } = useAuth();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [nickname, setNickname] = useState('');
@@ -50,6 +95,7 @@ const InviteUsers = () => {
         setMessage({ type: 'success', text: 'Invitation sent! User will be registered when they reply YES.' });
         setPhoneNumber('');
         setNickname('');
+        setTimeout(() => onClose(), 2000);
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to send invitation' });
       }
@@ -61,15 +107,18 @@ const InviteUsers = () => {
   };
 
   return (
-    <div className="bg-secondary p-6 rounded-lg shadow-lg max-w-md mx-auto">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-primary">Invite Users</h2>
-        <p className="text-sm text-gray-400 mt-2">Set a nickname for your user to personalize their experience.</p>
+    <Modal>
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-primary mb-3">Invite User</h2>
+        <p className="text-base text-gray-400">
+          Configure your invitation settings below
+        </p>
       </div>
-      <div className="p-4">
-        <form onSubmit={handleInvite} className="space-y-4">
+
+      <form onSubmit={handleInvite} className="login-form">
+        <div className="space-y-6">
           <div className="input-group">
-            <label htmlFor="nickname" className="block mb-2">Nickname</label>
+            <label htmlFor="nickname">Nickname</label>
             <input
               type="text"
               id="nickname"
@@ -77,12 +126,12 @@ const InviteUsers = () => {
               onChange={(e) => setNickname(e.target.value)}
               placeholder="Enter a nickname"
               required
-              className="w-full p-2 rounded-md bg-opacity-10 bg-white border border-secondary"
               maxLength={20}
             />
           </div>
+
           <div className="input-group">
-            <label htmlFor="phoneNumber" className="block mb-2">Phone Number</label>
+            <label htmlFor="phoneNumber">Phone Number</label>
             <input
               type="tel"
               id="phoneNumber"
@@ -90,24 +139,41 @@ const InviteUsers = () => {
               onChange={handlePhoneNumberChange}
               placeholder="(555) 555-5555"
               required
-              className="w-full p-2 rounded-md bg-opacity-10 bg-white border border-secondary"
             />
           </div>
+        </div>
+
+        {message && (
+          <div 
+            className={`p-4 rounded-lg mt-6 ${
+              message.type === 'error' 
+                ? 'bg-red-500/10 text-red-400 border border-red-500/30' 
+                : 'bg-green-500/10 text-green-400 border border-green-500/30'
+            }`}
+          >
+            {message.text}
+          </div>
+        )}
+
+        <div className="flex justify-end gap-8 mt-8">
+          <button
+            type="button"
+            onClick={onClose}
+            className="nav-button px-6"
+          >
+            Cancel
+          </button>
           <button
             type="submit"
             disabled={isLoading}
-            className={`button w-full ${isLoading ? 'opacity-50' : ''}`}
+            className="nav-button nav-button-highlight px-6"
+            style={{ marginLeft: '8px' }}
           >
-            {isLoading ? 'Sending...' : 'Send Invitation'}
+            {isLoading ? 'Sending...' : 'Invite'}
           </button>
-          {message && (
-            <div className={`notification ${message.type} mt-4`}>
-              {message.text}
-            </div>
-          )}
-        </form>
-      </div>
-    </div>
+        </div>
+      </form>
+    </Modal>
   );
 };
 

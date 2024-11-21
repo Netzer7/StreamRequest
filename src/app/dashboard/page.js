@@ -419,6 +419,7 @@ export default function Dashboard() {
   }
 
   return (
+    
     <div className="min-h-screen">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
@@ -428,7 +429,7 @@ export default function Dashboard() {
           </h1>
           <button 
             onClick={() => setShowInviteModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-white text-primary rounded-lg hover:bg-primary hover:text-white transition-colors"
+            className="nav-button nav-button-highlight inline-flex items-center gap-2"
           >
             <Users size={20} />
             Invite Users
@@ -496,20 +497,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Invite Modal */}
         {showInviteModal && (
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="relative bg-background rounded-lg max-w-md w-full">
-              <button 
-                className="absolute top-4 right-4 text-gray-400 hover:text-white"
-                onClick={() => setShowInviteModal(false)}
-              >
-                <X size={20} />
-              </button>
-              <InviteUsers onSuccess={() => setShowInviteModal(false)} />
-            </div>
-          </div>
-        )}
+        <InviteUsers onClose={() => setShowInviteModal(false)} />
+      )}
       </div>
     </div>
   );
