@@ -82,7 +82,15 @@ const CollapsibleSection = ({ title, icon: Icon, badge, children, defaultExpande
 const MediaRequestCard = ({ request, details, isLoading, onAction }) => {
   if (isLoading) {
     return (
-      <div className="bg-secondary/20 rounded-lg p-6 flex justify-center items-center h-48">
+      <div style={{ 
+        backgroundColor: 'rgb(34, 34, 34)',
+        border: '1px solid rgb(0, 160, 160)',
+        borderRadius: '8px',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '192px'
+      }}>
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
@@ -90,7 +98,11 @@ const MediaRequestCard = ({ request, details, isLoading, onAction }) => {
 
   if (!details) {
     return (
-      <div className="bg-secondary/20 rounded-lg p-4">
+      <div style={{ 
+        backgroundColor: 'rgb(34, 34, 34)',
+        border: '1px solid rgb(0, 160, 160)',
+        borderRadius: '8px',
+      }}>
         <h3 className="text-lg font-medium text-primary">{request.title}</h3>
         <p className="text-sm text-gray-400">Error loading media details</p>
       </div>
@@ -98,142 +110,212 @@ const MediaRequestCard = ({ request, details, isLoading, onAction }) => {
   }
 
   return (
-    <div className="media-request-card rounded-lg overflow-hidden shadow-lg">
-      <div className="flex gap-3 p-3"> 
-        <div className="media-poster flex-shrink-0 w-16">
-          {details.posterPath ? (
-            <img
-              src={`${TMDB_IMAGE_BASE_URL}${details.posterPath}`}
-              alt={`${details.title} poster`}
-              className="w-16 h-24 object-cover rounded-md"
-              onError={(e) => {
-                e.target.src = '/placeholder-poster.jpg'
-              }}
-            />
-          ) : (
-            <div className="w-16 h-24 bg-secondary rounded-md flex items-center justify-center">
-              <Film size={16} className="text-gray-600" />
-            </div>
-          )}
+    <div style={{ 
+      backgroundColor: 'rgb(34, 34, 34)',
+      border: '1px solid rgb(0, 160, 160)',
+      borderRadius: '8px',
+      overflow: 'hidden',
+      display: 'flex',
+      transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+    }}>
+      {/* Poster on the left - increased width to 180px */}
+      {details.posterPath ? (
+        <img
+          src={`${TMDB_IMAGE_BASE_URL}${details.posterPath}`}
+          alt={`${details.title} poster`}
+          style={{
+            width: '180px', // Increased from 140px
+            objectFit: 'cover',
+            borderTopLeftRadius: '8px',
+            borderBottomLeftRadius: '8px',
+            flexShrink: 0 // Prevent poster from shrinking
+          }}
+          onError={(e) => {
+            e.target.src = '/placeholder-poster.jpg'
+          }}
+        />
+      ) : (
+        <div style={{
+          width: '180px', // Increased from 140px
+          display: 'flex',
+          flexShrink: 0, // Prevent placeholder from shrinking
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'var(--color-secondary)',
+        }}>
+          <Film size={32} className="text-gray-600" />
         </div>
+      )}
 
-        <div className="flex-grow min-w-0">
-          <h3 className="text-lg font-medium text-primary mb-2 line-clamp-1">
-            {details.title}
-          </h3>
+      {/* Content next to poster - increased left padding */}
+      <div style={{
+        padding: '24px 24px 24px 32px', // Increased left padding to 32px
+        display: 'flex',
+        flexDirection: 'column',
+        flexGrow: 1,
+        minWidth: 0 // Prevent content from overflowing
+      }}>
+        <h3 className="text-xl font-medium text-primary mb-3">
+          {details.title}
+        </h3>
 
-          <div className="flex flex-wrap gap-2 mb-3">
-            <span className="badge badge-primary">
-              {request.mediaType === 'movie' ? 'Movie' : 'TV Show'}
+        <div className="flex flex-wrap gap-2 mb-3">
+          <span className="badge badge-primary">
+            {request.mediaType === 'movie' ? 'Movie' : 'TV Show'}
+          </span>
+          {details.rating && (
+            <span className="badge badge-rating">
+              <Star size={12} className="mr-1" />
+              {details.rating}/10
             </span>
-            {details.rating && (
-              <span className="badge badge-rating">
-                <Star size={12} className="mr-1" />
-                {details.rating}/10
-              </span>
-            )}
-            {details.releaseYear && (
-              <span className="badge badge-secondary">
-                <Calendar size={12} className="mr-1" /> 
-                {details.releaseYear}
-              </span>
-            )}
-          </div>
-
-          {details.overview && (
-            <p className="text-sm text-gray-300 line-clamp-2 mb-3">
-              {details.overview}
-            </p>
           )}
-
-          {details.genres?.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {details.genres.slice(0, 3).map(genre => (
-                <span key={genre} className="badge badge-secondary text-xs">
-                  {genre}
-                </span>
-              ))}
-            </div>
+          {details.releaseYear && (
+            <span className="badge badge-secondary">
+              <Calendar size={12} className="mr-1" /> 
+              {details.releaseYear}
+            </span>
           )}
-
-          <div className="flex items-center justify-between text-xs text-gray-400 mb-3">
-            <span>Requested by: {request.requesterNickname || 'User'}</span>
-            <span>{new Date(request.createdAt).toLocaleDateString()}</span>
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={() => onAction(request.id, 'approved')}
-              className="action-button action-button-approve flex-1"
-            >
-              <Check size={14} />
-              Approve
-            </button>
-            <button
-              onClick={() => onAction(request.id, 'rejected')}
-              className="action-button action-button-reject flex-1"
-            >
-              <X size={14} />
-              Reject
-            </button>
-          </div>
         </div>
+
+        {details.overview && (
+          <p className="text-sm text-gray-300 line-clamp-2 mb-3">
+            {details.overview}
+          </p>
+        )}
+
+        {details.genres?.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {details.genres.slice(0, 3).map(genre => (
+              <span key={genre} className="badge badge-secondary text-xs">
+                {genre}
+              </span>
+            ))}
+          </div>
+        )}
+
+    <div className="mt-auto flex flex-col gap-2 text-sm text-gray-400">
+        <span>Requested by: {request.requesterNickname || 'User'}</span> {}
+        <span>{new Date(request.createdAt).toLocaleDateString()}</span>
       </div>
-    </div>
-  );
-};
 
-const LibraryCard = ({ item, details, isLoading, onRenew }) => {
-  const daysUntilExpiry = Math.ceil((item.expiresAt.toDate() - new Date()) / (1000 * 60 * 60 * 24));
-  const isExpiringSoon = daysUntilExpiry <= 3;
-
-  return (
-    <div className="library-card rounded-lg overflow-hidden shadow-lg bg-secondary/20">
-      <div className="flex gap-3 p-3">
-        <div className="media-poster flex-shrink-0 w-16">
-          {details?.posterPath ? (
-            <img
-              src={`${TMDB_IMAGE_BASE_URL}${details.posterPath}`}
-              alt={`${details.title} poster`}
-              className="w-16 h-24 object-cover rounded-md"
-              onError={(e) => {
-                e.target.src = '/placeholder-poster.jpg'
-              }}
-            />
-          ) : (
-            <div className="w-16 h-24 bg-secondary rounded-md flex items-center justify-center">
-              <Film size={16} className="text-gray-600" />
-            </div>
-          )}
-        </div>
-
-        <div className="flex-grow min-w-0">
-          <h3 className="text-lg font-medium text-primary mb-2 line-clamp-1">
-            {details?.title || item.title}
-          </h3>
-
-          <div className={`flex items-center gap-2 mb-3 ${isExpiringSoon ? 'text-red-400' : 'text-gray-400'}`}>
-            <Clock size={14} />
-            <span className="text-sm">
-              {daysUntilExpiry > 0 
-                ? `Expires in ${daysUntilExpiry} days`
-                : 'Expired'}
-            </span>
-          </div>
-
+        <div className="flex gap-3">
           <button
-            onClick={() => onRenew(item.id)}
-            className="action-button action-button-renew w-full"
+            onClick={() => onAction(request.id, 'approved')}
+            className="action-button action-button-approve flex-1"
           >
-            <RefreshCw size={14} />
-            Renew for 3 Weeks
+            <Check size={14} />
+            Approve
+          </button>
+          <button
+            onClick={() => onAction(request.id, 'rejected')}
+            className="action-button action-button-reject flex-1"
+          >
+            <X size={14} />
+            Reject
           </button>
         </div>
       </div>
     </div>
   );
 };
+const LibraryCard = ({ item, details, isLoading}) => {
+  const getExpiryText = () => {
+    const daysUntilExpiry = Math.ceil((item.expiresAt.toDate() - new Date()) / (1000 * 60 * 60 * 24));
+    const isExpiringSoon = daysUntilExpiry <= 3;
+    
+    if (daysUntilExpiry <= 0) return 'Expired';
+    if (daysUntilExpiry >= 7) return `${Math.floor(daysUntilExpiry / 7)}w`;
+    return `${daysUntilExpiry}d`;
+  };
 
+  const expiryText = getExpiryText();
+  const isExpiringSoon = Math.ceil((item.expiresAt.toDate() - new Date()) / (1000 * 60 * 60 * 24)) <= 3;
+
+  return (
+    <div style={{ 
+      position: 'relative',
+      width: '100%',
+      aspectRatio: '2/3',
+      borderRadius: '8px',
+      overflow: 'hidden'
+    }}>
+      {details?.posterPath ? (
+        <img
+          src={`${TMDB_IMAGE_BASE_URL}${details.posterPath}`}
+          alt={`${details.title} poster`}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover'
+          }}
+          onError={(e) => {
+            e.target.src = '/placeholder-poster.jpg'
+          }}
+        />
+      ) : (
+        <div style={{
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'var(--color-secondary)'
+        }}>
+          <Film size={24} className="text-gray-600" />
+        </div>
+      )}
+      
+      {/* Expiry badge */}
+      <div 
+        style={{
+          position: 'absolute',
+          bottom: '8px',
+          right: '8px',
+          padding: '4px 8px',
+          borderRadius: '9999px',
+          fontSize: '12px',
+          fontWeight: '500',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          backgroundColor: isExpiringSoon ? 'rgba(239, 68, 68, 0.9)' : 'rgba(0, 0, 0, 0.7)',
+          color: 'white',
+          backdropFilter: 'blur(4px)'
+        }}
+      >
+        <Clock size={12} />
+        {expiryText}
+      </div>
+
+      {/* Hover overlay with title */}
+      <div 
+        style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          opacity: 0,
+          transition: 'opacity 200ms ease',
+          padding: '12px',
+          display: 'flex',
+          alignItems: 'flex-start'
+        }}
+        className="group-hover:opacity-100"
+      >
+        <h3 style={{
+          fontSize: '14px',
+          fontWeight: '500',
+          color: 'white',
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden'
+        }}>
+          {details?.title || item.title}
+        </h3>
+      </div>
+    </div>
+  );
+};
 export default function Dashboard() {
   const { user } = useAuth()
   const [requests, setRequests] = useState([])
@@ -244,6 +326,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [mediaDetails, setMediaDetails] = useState({})
   const [loadingDetails, setLoadingDetails] = useState({})
+  const [requestsExpanded, setRequestsExpanded] = useState(true);
+  const [libraryExpanded, setLibraryExpanded] = useState(true);
 
   useEffect(() => {
     if (!user?.uid) return
@@ -370,8 +454,7 @@ export default function Dashboard() {
           requestId: requestId,
           status: 'active',
           addedAt: Timestamp.now(),
-          expiresAt: Timestamp.fromDate(expiryDate),
-          renewals: 0
+          expiresAt: Timestamp.fromDate(expiryDate)
         })
       }
   
@@ -392,31 +475,6 @@ export default function Dashboard() {
       })
     } catch (error) {
       console.error('Error updating request:', error)
-    }
-  }
-
-  const handleRenewLibraryItem = async (itemId) => {
-    try {
-      const itemRef = doc(db, 'library', itemId)
-      const newExpiryDate = new Date(Date.now() + LIBRARY_EXPIRY_DAYS * 24 * 60 * 60 * 1000)
-
-      await updateDoc(itemRef, {
-        expiresAt: Timestamp.fromDate(newExpiryDate),
-        renewals: increment(1)
-      })
-
-      await fetch('/api/notify-library-renewal', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          itemId,
-          newExpiryDate
-        })
-      })
-    } catch (error) {
-      console.error('Error renewing library item:', error)
     }
   }
 
@@ -447,65 +505,176 @@ export default function Dashboard() {
         </div>
       </div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Media Requests Section */}
-          <div className="lg:col-span-1">
-            <CollapsibleSection
-              title="Media Requests"
-              icon={Film}
-              badge={requests.length || null}
-              defaultExpanded={true}
-            >
-              {requests.length === 0 ? (
-                <div className="text-center p-4 bg-secondary/20 rounded-lg text-gray-400">
-                  No pending media requests
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {requests.map((request) => (
-                    <MediaRequestCard
-                      key={request.id}
-                      request={request}
-                      details={mediaDetails[request.tmdbId]}
-                      isLoading={loadingDetails[request.tmdbId]}
-                      onAction={handleRequestAction}
-                    />
-                  ))}
-                </div>
-              )}
-            </CollapsibleSection>
-          </div>
+{/* Main Content */}
+<div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+  {/* Requests Section Header */}
+<div 
+  onClick={() => setRequestsExpanded(!requestsExpanded)}
+  style={{
+    paddingBottom: '16px',
+    borderBottom: '1px solid rgba(0, 160, 160, 0.3)',
+    marginBottom: '24px',
+    cursor: 'pointer',
+  }}
+>
+  <div style={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%'
+  }}>
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: '16px', // Increased spacing between elements
+      color: 'rgb(0, 160, 160)' // Using the primary color
+    }}>
+      <Film size={24} style={{ flexShrink: 0 }} />
+      <span style={{
+        fontSize: '24px',
+        fontWeight: 'bold',
+        marginRight: '16px',
+        color: 'rgb(0, 160, 160)'
+      }}>
+        Media Requests
+      </span>
+      {requests.length > 0 && (
+        <div style={{
+          backgroundColor: 'rgba(0, 160, 160, 0.2)',
+          color: 'rgb(0, 160, 160)',
+          padding: '4px 12px',
+          borderRadius: '9999px',
+          fontSize: '16px',
+          fontWeight: '500'
+        }}>
+          {requests.length}
+        </div>
+      )}
+    </div>
+    <ChevronRight 
+      size={24} 
+      style={{
+        transform: requestsExpanded ? 'rotate(90deg)' : 'none',
+        transition: 'transform 0.2s ease',
+        color: 'rgb(0, 160, 160)',
+        flexShrink: 0
+      }}
+    />
+  </div>
+    
+    <div style={{
+      height: requestsExpanded ? 'auto' : '0',
+      opacity: requestsExpanded ? 1 : 0,
+      overflow: 'hidden',
+      transition: 'all 0.3s ease-in-out'
+    }}>
+      {requests.length === 0 ? (
+        <div className="text-center p-4 bg-secondary/20 rounded-lg text-gray-400">
+          No pending media requests
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {requests.map((request) => (
+            <MediaRequestCard
+              key={request.id}
+              request={request}
+              details={mediaDetails[request.tmdbId]}
+              isLoading={loadingDetails[request.tmdbId]}
+              onAction={handleRequestAction}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
 
-          {/* Library Section */}
-          <div className="lg:col-span-2">
-            <CollapsibleSection
-              title="Media Library"
-              icon={Archive}
-              badge={libraryItems.length || null}
-              defaultExpanded={false}
-            >
-              {libraryItems.length === 0 ? (
-                <div className="text-center p-4 bg-secondary/20 rounded-lg text-gray-400">
-                  No media in library
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {libraryItems
-                    .sort((a, b) => a.expiresAt.toDate() - b.expiresAt.toDate())
-                    .map((item) => (
-                      <LibraryCard
-                        key={item.id}
-                        item={item}
-                        details={mediaDetails[item.tmdbId]}
-                        isLoading={loadingDetails[item.tmdbId]}
-                        onRenew={handleRenewLibraryItem}
-                      />
-                    ))}
-                </div>
-              )}
-            </CollapsibleSection>
-          </div>
+  {/* Library Section */}
+  {/* Library Section Header */}
+<div 
+  onClick={() => setLibraryExpanded(!libraryExpanded)}
+  style={{
+    paddingBottom: '16px',
+    borderBottom: '1px solid rgba(0, 160, 160, 0.3)',
+    marginBottom: '24px',
+    cursor: 'pointer'
+  }}
+>
+  <div style={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%'
+  }}>
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: '16px', // Increased spacing between elements
+      color: 'rgb(0, 160, 160)' // Using the primary color
+    }}>
+      <Archive size={24} style={{ flexShrink: 0 }} />
+      <span style={{
+        fontSize: '24px',
+        fontWeight: 'bold',
+        marginRight: '16px',
+        color: 'rgb(0, 160, 160)'
+      }}>
+        Media Library
+      </span>
+      {libraryItems.length > 0 && (
+        <div style={{
+          backgroundColor: 'rgba(0, 160, 160, 0.2)',
+          color: 'rgb(0, 160, 160)',
+          padding: '4px 12px',
+          borderRadius: '9999px',
+          fontSize: '16px',
+          fontWeight: '500'
+        }}>
+          {libraryItems.length}
+        </div>
+      )}
+    </div>
+    <ChevronRight 
+      size={24} 
+      style={{
+        transform: libraryExpanded ? 'rotate(90deg)' : 'none',
+        transition: 'transform 0.2s ease',
+        color: 'rgb(0, 160, 160)',
+        flexShrink: 0
+      }}
+    />
+  </div>
+
+    <div style={{
+      height: libraryExpanded ? 'auto' : '0',
+      opacity: libraryExpanded ? 1 : 0,
+      overflow: 'hidden',
+      transition: 'all 0.3s ease-in-out'
+    }}>
+      {libraryItems.length === 0 ? (
+        <div className="text-center p-4 bg-secondary/20 rounded-lg text-gray-400">
+          No media in library
+        </div>
+      ) : (
+        <div style={{ 
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+          gap: '16px',
+          width: '100%'
+        }}>
+          {libraryItems
+            .sort((a, b) => a.expiresAt.toDate() - b.expiresAt.toDate())
+            .map((item) => (
+              <LibraryCard
+                key={item.id}
+                item={item}
+                details={mediaDetails[item.tmdbId]}
+                isLoading={loadingDetails[item.tmdbId]}
+              />
+            ))}
+        </div>
+      )}
+    </div>
+  </div>
         </div>
 
         {showInviteModal && (
