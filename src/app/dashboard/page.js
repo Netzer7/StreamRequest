@@ -15,6 +15,7 @@ import {
   increment 
 } from 'firebase/firestore'
 import InviteUsers from '@/components/InviteUsers'
+import ShowUsers from '@/components/ShowUsers'
 import { 
   Users, 
   Film, 
@@ -239,6 +240,7 @@ export default function Dashboard() {
   const [libraryItems, setLibraryItems] = useState([])
   const [confirmedUsers, setConfirmedUsers] = useState([])
   const [showInviteModal, setShowInviteModal] = useState(false)
+  const [showUsersModal, setShowUsersModal] = useState(false)
   const [loading, setLoading] = useState(true)
   const [mediaDetails, setMediaDetails] = useState({})
   const [loadingDetails, setLoadingDetails] = useState({})
@@ -422,11 +424,11 @@ export default function Dashboard() {
     
     <div className="min-h-screen">
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-primary mb-4">
-            Your Dashboard
-          </h1>
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold text-primary mb-4">
+          Your Dashboard
+        </h1>
+        <div className="flex">
           <button 
             onClick={() => setShowInviteModal(true)}
             className="nav-button nav-button-highlight inline-flex items-center gap-2"
@@ -434,7 +436,16 @@ export default function Dashboard() {
             <Users size={20} />
             Invite Users
           </button>
+          <button 
+            onClick={() => setShowUsersModal(true)}
+            className="nav-button inline-flex items-center gap-2"
+            style={{ marginLeft: '20px', marginBottom: '16px' }} 
+          >
+            <Users size={20} />
+            View Users ({confirmedUsers.length})
+          </button>
         </div>
+      </div>
 
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -500,6 +511,12 @@ export default function Dashboard() {
         {showInviteModal && (
         <InviteUsers onClose={() => setShowInviteModal(false)} />
       )}
+      {showUsersModal && (
+      <ShowUsers 
+        users={confirmedUsers}
+        onClose={() => setShowUsersModal(false)}
+      />
+    )}
       </div>
     </div>
   );
