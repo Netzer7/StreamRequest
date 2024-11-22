@@ -81,6 +81,56 @@ const CollapsibleSection = ({ title, icon: Icon, badge, children, defaultExpande
 };
 
 const MediaRequestCard = ({ request, details, isLoading, onAction }) => {
+  // Handle custom requests (where mediaType === 'custom')
+  if (request.mediaType === 'custom') {
+    return (
+      <div style={{ 
+        backgroundColor: 'rgb(34, 34, 34)',
+        border: '1px solid rgb(0, 160, 160)',
+        borderRadius: '8px',
+        padding: '24px',
+        marginTop: '10px'
+      }}>
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className="text-xl font-medium text-primary mb-3">
+              {request.title}
+            </h3>
+            
+            <div className="flex flex-wrap gap-2 mb-3">
+              <span className="badge badge-primary">
+                Custom Request
+              </span>
+            </div>
+
+            <div className="mt-auto flex flex-col gap-2 text-sm text-gray-400">
+              <span>Requested by: {request.requesterNickname || 'User'}</span>
+              <span>{new Date(request.createdAt).toLocaleDateString()}</span>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <button
+              onClick={() => onAction(request.id, 'approved')}
+              className="action-button action-button-approve"
+            >
+              <Check size={14} />
+              Approve
+            </button>
+            <button
+              onClick={() => onAction(request.id, 'rejected')}
+              className="action-button action-button-reject"
+            >
+              <X size={14} />
+              Reject
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Loading state
   if (isLoading) {
     return (
       <div style={{ 
@@ -97,19 +147,6 @@ const MediaRequestCard = ({ request, details, isLoading, onAction }) => {
     );
   }
 
-  if (!details) {
-    return (
-      <div style={{ 
-        backgroundColor: 'rgb(34, 34, 34)',
-        border: '1px solid rgb(0, 160, 160)',
-        borderRadius: '8px',
-      }}>
-        <h3 className="text-lg font-medium text-primary">{request.title}</h3>
-        <p className="text-sm text-gray-400">Error loading media details</p>
-      </div>
-    );
-  }
-
   return (
     <div style={{ 
       backgroundColor: 'rgb(34, 34, 34)',
@@ -119,10 +156,9 @@ const MediaRequestCard = ({ request, details, isLoading, onAction }) => {
       display: 'flex',
       transition: 'transform 0.2s ease, box-shadow 0.2s ease',
       marginTop: '10px'
-      
     }}>
-      {/* Poster on the left - increased width to 180px */}
-      {details.posterPath ? (
+      {/* Poster on the left */}
+      {details?.posterPath ? (
         <img
           src={`${TMDB_IMAGE_BASE_URL}${details.posterPath}`}
           alt={`${details.title} poster`}
@@ -145,35 +181,34 @@ const MediaRequestCard = ({ request, details, isLoading, onAction }) => {
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: 'var(--color-secondary)',
-
         }}>
           <Film size={32} className="text-gray-600" />
         </div>
       )}
 
-      {/* Content next to poster - increased left padding */}
+      {/* Content next to poster */}
       <div style={{
-        padding: '24px 24px 24px 32px', // Increased left padding to 32px
+        padding: '24px 24px 24px 32px',
         display: 'flex',
         flexDirection: 'column',
         flexGrow: 1,
-        minWidth: 0 // Prevent content from overflowing
+        minWidth: 0
       }}>
         <h3 className="text-xl font-medium text-primary mb-3">
-          {details.title}
+          {details?.title || request.title}
         </h3>
 
         <div className="flex flex-wrap gap-2 mb-3">
           <span className="badge badge-primary">
             {request.mediaType === 'movie' ? 'Movie' : 'TV Show'}
           </span>
-          {details.rating && (
+          {details?.rating && (
             <span className="badge badge-rating">
               <Star size={12} className="mr-1" />
               {details.rating}/10
             </span>
           )}
-          {details.releaseYear && (
+          {details?.releaseYear && (
             <span className="badge badge-secondary">
               <Calendar size={12} className="mr-1" /> 
               {details.releaseYear}
@@ -181,13 +216,13 @@ const MediaRequestCard = ({ request, details, isLoading, onAction }) => {
           )}
         </div>
 
-        {details.overview && (
+        {details?.overview && (
           <p className="text-sm text-gray-300 line-clamp-2 mb-3">
             {details.overview}
           </p>
         )}
 
-        {details.genres?.length > 0 && (
+        {details?.genres?.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-3">
             {details.genres.slice(0, 3).map(genre => (
               <span key={genre} className="badge badge-secondary text-xs">
@@ -197,12 +232,12 @@ const MediaRequestCard = ({ request, details, isLoading, onAction }) => {
           </div>
         )}
 
-    <div className="mt-auto flex flex-col gap-2 text-sm text-gray-400">
-        <span>Requested by: {request.requesterNickname || 'User'}</span> {}
-        <span>{new Date(request.createdAt).toLocaleDateString()}</span>
-      </div>
+        <div className="mt-auto flex flex-col gap-2 text-sm text-gray-400">
+          <span>Requested by: {request.requesterNickname || 'User'}</span>
+          <span>{new Date(request.createdAt).toLocaleDateString()}</span>
+        </div>
 
-        <div className="flex gap-6">
+        <div className="flex gap-6 mt-4">
           <button
             onClick={() => onAction(request.id, 'approved')}
             className="action-button action-button-approve flex-1"

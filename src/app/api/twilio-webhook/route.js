@@ -111,7 +111,22 @@ async function handleMediaSearch(phoneNumber, searchQuery) {
   const searchResults = await searchTMDB(searchQuery);
   
   if (searchResults.length === 0) {
-    return createTwiMLResponse('No matches found. Please try another search term.');
+    // Store the original query for later use
+    const user = userQuery.docs[0];
+    await user.ref.update({
+      pendingSearch: {
+        customRequest: searchQuery,
+        timestamp: new Date().toISOString(),
+        originalQuery: searchQuery
+      }
+    });
+
+    return createTwiMLResponse(
+      'No matches found. Would you like to:\n\n' +
+      '1. Submit this as a custom request\n' +
+      '2. Try searching with different terms\n\n' +
+      'Reply with 1 or 2'
+    );
   }
 
   // Store search results in user document
@@ -148,6 +163,42 @@ async function handleConfirmation(phoneNumber, message) {
     return createTwiMLResponse('No pending search found. Please start a new request.');
   }
 
+  // Handle custom request confirmation
+  if (userData.pendingSearch.customRequest) {
+    if (message === '1') {
+      // Submit as custom request
+      await adminDb.collection('mediaRequests').add({
+        title: userData.pendingSearch.customRequest,
+        mediaType: 'custom',
+        overview: 'Custom media request',
+        requesterId: user.id,
+        requesterPhone: phoneNumber,
+        requesterNickname: userData.nickname || null,
+        managerId: userData.managerId,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      });
+
+      // Clear the pending search
+      await user.ref.update({
+        pendingSearch: null
+      });
+
+      return createTwiMLResponse(
+        `Your custom request for "${userData.pendingSearch.customRequest}" has been submitted and will be reviewed by your media server administrator.`
+      );
+    } else if (message === '2') {
+      // Clear the pending search for a new attempt
+      await user.ref.update({
+        pendingSearch: null
+      });
+      return createTwiMLResponse('Please try your search again with different terms.');
+    } else {
+      return createTwiMLResponse('Please reply with 1 to submit as custom request, or 2 to try again.');
+    }
+  }
+
+  // Handle regular media selection
   const selectionNumber = parseInt(message) - 1;
   const selectedMedia = userData.pendingSearch.searchResults[selectionNumber];
 
