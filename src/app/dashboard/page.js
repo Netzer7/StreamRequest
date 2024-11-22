@@ -551,6 +551,75 @@ export default function Dashboard() {
     }
   }
 
+  const handleApproveAll = async () => {
+    try {
+      const approvedTitles = [];
+      const requestIds = [];
+      
+      // Process all requests sequentially
+      for (const request of requests) {
+        const requestRef = doc(db, 'mediaRequests', request.id);
+        const expiryDate = new Date();
+        expiryDate.setDate(expiryDate.getDate() + 21);
+
+        // Add to library
+        await addDoc(collection(db, 'library'), {
+          ...request,
+          requestId: request.id,
+          status: 'active',
+          addedAt: Timestamp.now(),
+          expiresAt: Timestamp.fromDate(expiryDate)
+        });
+
+        // Update request status
+        await updateDoc(requestRef, {
+          status: 'approved',
+          updatedAt: Timestamp.now()
+        });
+
+        approvedTitles.push(request.title);
+        requestIds.push(request.id);
+      }
+
+      // Send a single batch notification to the API
+      await fetch('/api/notify-request-update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          requestIds: requestIds,
+          action: 'approved',
+          isBatchApproval: true
+        })
+      });
+
+      // Format the notification message
+      const formatTitlesList = (titles) => {
+        if (titles.length === 2) {
+          return `${titles[0]} and ${titles[1]}`;
+        }
+        return titles.map((title, index) => {
+          if (index === titles.length - 1) {
+            return `and ${title}`;
+          }
+          return title;
+        }).join(', ');
+      };
+
+      const message = `Approved ${approvedTitles.length} items: ${formatTitlesList(approvedTitles)}`;
+      
+      showNotification(message, 'success', 5000);
+
+    } catch (error) {
+      console.error('Error in batch approval:', error);
+      showNotification(
+        `Failed to approve all requests: ${error.message}`,
+        'error'
+      );
+    }
+  };
+
    const handleRemoveLibraryItem = async (itemId) => {
     try {
       const libraryItem = libraryItems.find(item => item.id === itemId);
@@ -609,59 +678,76 @@ export default function Dashboard() {
 {/* Main Content */}
 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
   {/* Requests Section Header */}
-<div 
-  onClick={() => setRequestsExpanded(!requestsExpanded)}
-  style={{
-    paddingBottom: '16px',
-    borderBottom: '1px solid rgba(0, 160, 160, 0.3)',
-    marginBottom: '24px',
-    cursor: 'pointer',
-  }}
->
-  <div style={{
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%'
-  }}>
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '16px', // Increased spacing between elements
-      color: 'rgb(0, 160, 160)' // Using the primary color
-    }}>
-      <Film size={24} style={{ flexShrink: 0 }} />
-      <span style={{
-        fontSize: '24px',
-        fontWeight: 'bold',
-        marginRight: '16px',
-        color: 'rgb(0, 160, 160)'
-      }}>
-        Media Requests
-      </span>
-      {requests.length > 0 && (
+  <div 
+        onClick={() => setRequestsExpanded(!requestsExpanded)}
+        style={{
+          paddingBottom: '16px',
+          borderBottom: '1px solid rgba(0, 160, 160, 0.3)',
+          marginBottom: '24px',
+          cursor: 'pointer',
+        }}
+      >
         <div style={{
-          backgroundColor: 'rgba(0, 160, 160, 0.2)',
-          color: 'rgb(0, 160, 160)',
-          padding: '4px 12px',
-          borderRadius: '9999px',
-          fontSize: '16px',
-          fontWeight: '500'
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          width: '100%'
         }}>
-          {requests.length}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            color: 'rgb(0, 160, 160)'
+          }}>
+            <Film size={24} style={{ flexShrink: 0 }} />
+            <span style={{
+              fontSize: '24px',
+              fontWeight: 'bold',
+              marginRight: '16px',
+              color: 'rgb(0, 160, 160)'
+            }}>
+              Media Requests
+            </span>
+            {requests.length > 0 && (
+              <>
+                <div style={{
+                  backgroundColor: 'rgba(0, 160, 160, 0.2)',
+                  color: 'rgb(0, 160, 160)',
+                  padding: '4px 12px',
+                  borderRadius: '9999px',
+                  fontSize: '16px',
+                  fontWeight: '500'
+                }}>
+                  {requests.length}
+                </div>
+                {requestsExpanded && requests.length > 1 && (
+          <div className="mt-4 mb-2">
+            <button
+              onClick={() => {
+                if (confirm(`Are you sure you want to approve all ${requests.length} requests?`)) {
+                  handleApproveAll();
+                }
+              }}
+              className="action-button action-button-approve w-full flex items-center justify-center gap-2"
+            >
+              <Check size={14} />
+              Approve All {requests.length} Requests
+            </button>
+          </div>
+        )}
+              </>
+            )}
+          </div>
+          <ChevronRight 
+            size={24} 
+            style={{
+              transform: requestsExpanded ? 'rotate(90deg)' : 'none',
+              transition: 'transform 0.2s ease',
+              color: 'rgb(0, 160, 160)',
+              flexShrink: 0
+            }}
+          />
         </div>
-      )}
-    </div>
-    <ChevronRight 
-      size={24} 
-      style={{
-        transform: requestsExpanded ? 'rotate(90deg)' : 'none',
-        transition: 'transform 0.2s ease',
-        color: 'rgb(0, 160, 160)',
-        flexShrink: 0
-      }}
-    />
-  </div>
     
     <div style={{
       height: requestsExpanded ? 'auto' : '0',
