@@ -692,3 +692,7 @@ body.modal-open {
   right: 0;
   background: linear-gradient(to left, rgba(31, 31, 31, 1), transparent);
 }
+
+.lucide {
+  padding: 2px 4px 0px 0px;
+}

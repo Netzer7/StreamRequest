@@ -30,7 +30,8 @@ import {
   Archive, 
   RefreshCw,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Trash2
 } from 'lucide-react'
 
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
@@ -89,7 +90,7 @@ const MediaRequestCard = ({ request, details, isLoading, onAction }) => {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        height: '192px'
+        height: '192px',
       }}>
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
@@ -116,7 +117,9 @@ const MediaRequestCard = ({ request, details, isLoading, onAction }) => {
       borderRadius: '8px',
       overflow: 'hidden',
       display: 'flex',
-      transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+      transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+      marginTop: '10px'
+      
     }}>
       {/* Poster on the left - increased width to 180px */}
       {details.posterPath ? (
@@ -124,11 +127,11 @@ const MediaRequestCard = ({ request, details, isLoading, onAction }) => {
           src={`${TMDB_IMAGE_BASE_URL}${details.posterPath}`}
           alt={`${details.title} poster`}
           style={{
-            width: '180px', // Increased from 140px
+            width: '180px', 
             objectFit: 'cover',
             borderTopLeftRadius: '8px',
             borderBottomLeftRadius: '8px',
-            flexShrink: 0 // Prevent poster from shrinking
+            flexShrink: 0 
           }}
           onError={(e) => {
             e.target.src = '/placeholder-poster.jpg'
@@ -136,12 +139,13 @@ const MediaRequestCard = ({ request, details, isLoading, onAction }) => {
         />
       ) : (
         <div style={{
-          width: '180px', // Increased from 140px
+          width: '180px', 
           display: 'flex',
-          flexShrink: 0, // Prevent placeholder from shrinking
+          flexShrink: 0, 
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: 'var(--color-secondary)',
+
         }}>
           <Film size={32} className="text-gray-600" />
         </div>
@@ -198,7 +202,7 @@ const MediaRequestCard = ({ request, details, isLoading, onAction }) => {
         <span>{new Date(request.createdAt).toLocaleDateString()}</span>
       </div>
 
-        <div className="flex gap-3">
+        <div className="flex gap-6">
           <button
             onClick={() => onAction(request.id, 'approved')}
             className="action-button action-button-approve flex-1"
@@ -218,7 +222,7 @@ const MediaRequestCard = ({ request, details, isLoading, onAction }) => {
     </div>
   );
 };
-const LibraryCard = ({ item, details, isLoading}) => {
+const LibraryCard = ({ item, details, isLoading, onRemove }) => {
   const getExpiryText = () => {
     const daysUntilExpiry = Math.ceil((item.expiresAt.toDate() - new Date()) / (1000 * 60 * 60 * 24));
     const isExpiringSoon = daysUntilExpiry <= 3;
@@ -232,90 +236,105 @@ const LibraryCard = ({ item, details, isLoading}) => {
   const isExpiringSoon = Math.ceil((item.expiresAt.toDate() - new Date()) / (1000 * 60 * 60 * 24)) <= 3;
 
   return (
-    <div style={{ 
-      position: 'relative',
-      width: '100%',
-      aspectRatio: '2/3',
-      borderRadius: '8px',
-      overflow: 'hidden'
-    }}>
-      {details?.posterPath ? (
-        <img
-          src={`${TMDB_IMAGE_BASE_URL}${details.posterPath}`}
-          alt={`${details.title} poster`}
-          style={{
+    <div className="flex flex-col">
+      {/* Cover with expiry badge */}
+      <div style={{ 
+        position: 'relative',
+        width: '100%',
+        aspectRatio: '2/3',
+        borderRadius: '8px',
+        overflow: 'hidden',
+        marginBottom: '8px'
+      }}>
+        {details?.posterPath ? (
+          <img
+            src={`${TMDB_IMAGE_BASE_URL}${details.posterPath}`}
+            alt={`${details.title} poster`}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover'
+            }}
+            onError={(e) => {
+              e.target.src = '/placeholder-poster.jpg'
+            }}
+          />
+        ) : (
+          <div style={{
             width: '100%',
             height: '100%',
-            objectFit: 'cover'
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'var(--color-secondary)'
+          }}>
+            <Film size={24} className="text-gray-600" />
+          </div>
+        )}
+        
+        {/* Expiry badge */}
+        <div 
+          style={{
+            position: 'absolute',
+            bottom: '8px',
+            right: '8px',
+            padding: '4px 8px',
+            borderRadius: '9999px',
+            fontSize: '12px',
+            fontWeight: '500',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            backgroundColor: isExpiringSoon ? 'rgba(239, 68, 68, 0.9)' : 'rgba(0, 0, 0, 0.7)',
+            color: 'white',
+            backdropFilter: 'blur(4px)'
           }}
-          onError={(e) => {
-            e.target.src = '/placeholder-poster.jpg'
-          }}
-        />
-      ) : (
-        <div style={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: 'var(--color-secondary)'
-        }}>
-          <Film size={24} className="text-gray-600" />
+        >
+          <Clock size={12} />
+          {expiryText}
         </div>
-      )}
-      
-      {/* Expiry badge */}
-      <div 
-        style={{
-          position: 'absolute',
-          bottom: '8px',
-          right: '8px',
-          padding: '4px 8px',
-          borderRadius: '9999px',
-          fontSize: '12px',
-          fontWeight: '500',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '4px',
-          backgroundColor: isExpiringSoon ? 'rgba(239, 68, 68, 0.9)' : 'rgba(0, 0, 0, 0.7)',
-          color: 'white',
-          backdropFilter: 'blur(4px)'
-        }}
-      >
-        <Clock size={12} />
-        {expiryText}
       </div>
 
-      {/* Hover overlay with title */}
-      <div 
-        style={{
-          position: 'absolute',
-          inset: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          opacity: 0,
-          transition: 'opacity 200ms ease',
-          padding: '12px',
-          display: 'flex',
-          alignItems: 'flex-start'
-        }}
-        className="group-hover:opacity-100"
-      >
-        <h3 style={{
+{/* Title and trash icon container */}
+<div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        width: '100%',
+        minWidth: 0 // Allows text truncation to work
+      }}>
+        <div style={{
+          flex: '1',
+          minWidth: 0, // Allows text truncation to work
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
           fontSize: '14px',
           fontWeight: '500',
-          color: 'white',
-          display: '-webkit-box',
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden'
+          color: 'rgb(209, 213, 219)' // text-gray-300 equivalent
         }}>
           {details?.title || item.title}
-        </h3>
+        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (confirm('Are you sure you want to remove this item?')) {
+              onRemove(item.id);
+            }
+          }}
+          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-red-500/20 transition-all duration-200 flex-shrink-0"
+          style={{ marginLeft: '8px' }}
+        >
+          <Trash2 
+            size={14} 
+            className="text-red-400 transform hover:scale-110 transition-transform duration-200" 
+          />
+        </button>
       </div>
     </div>
   );
 };
+
 export default function Dashboard() {
   const { user } = useAuth()
   const [requests, setRequests] = useState([])
@@ -382,13 +401,15 @@ export default function Dashboard() {
 
     const q = query(
       collection(db, 'library'),
-      where('managerId', '==', user.uid)
+      where('managerId', '==', user.uid),
+      where('status', '==', 'active')
     )
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const items = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
+        docId: doc.id,
         expiresAt: doc.data().expiresAt
       }))
       
@@ -478,6 +499,26 @@ export default function Dashboard() {
     }
   }
 
+  const handleRemoveLibraryItem = async (itemId) => {
+    try {
+      const libraryItem = libraryItems.find(item => item.id === itemId);
+      if (!libraryItem || !libraryItem.docId) {
+        throw new Error('Library item not found');
+      }
+  
+      const libraryRef = doc(db, 'library', libraryItem.docId);
+      await updateDoc(libraryRef, {
+        status: 'removed',
+        removedAt: Timestamp.now()
+      });
+  
+      console.log('Successfully removed item:', itemId);
+    } catch (error) {
+      console.error('Error removing library item:', error);
+      alert(`Failed to remove item: ${error.message}`);
+    }
+  };
+
   return (
     
     <div className="min-h-screen">
@@ -566,7 +607,8 @@ export default function Dashboard() {
       height: requestsExpanded ? 'auto' : '0',
       opacity: requestsExpanded ? 1 : 0,
       overflow: 'hidden',
-      transition: 'all 0.3s ease-in-out'
+      transition: 'all 0.3s ease-in-out',
+      marginTop: '16px'
     }}>
       {requests.length === 0 ? (
         <div className="text-center p-4 bg-secondary/20 rounded-lg text-gray-400">
@@ -588,7 +630,6 @@ export default function Dashboard() {
     </div>
   </div>
 
-  {/* Library Section */}
   {/* Library Section Header */}
 <div 
   onClick={() => setLibraryExpanded(!libraryExpanded)}
@@ -648,7 +689,9 @@ export default function Dashboard() {
       height: libraryExpanded ? 'auto' : '0',
       opacity: libraryExpanded ? 1 : 0,
       overflow: 'hidden',
-      transition: 'all 0.3s ease-in-out'
+      transition: 'all 0.3s ease-in-out',
+      marginTop: '16px'
+
     }}>
       {libraryItems.length === 0 ? (
         <div className="text-center p-4 bg-secondary/20 rounded-lg text-gray-400">
@@ -658,18 +701,21 @@ export default function Dashboard() {
         <div style={{ 
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-          gap: '16px',
+          gap: '24px',
           width: '100%'
         }}>
           {libraryItems
             .sort((a, b) => a.expiresAt.toDate() - b.expiresAt.toDate())
             .map((item) => (
+              <div key={item.id} style={{ minWidth: 0 }}>
               <LibraryCard
                 key={item.id}
                 item={item}
                 details={mediaDetails[item.tmdbId]}
                 isLoading={loadingDetails[item.tmdbId]}
+                onRemove={handleRemoveLibraryItem}
               />
+            </div>
             ))}
         </div>
       )}
