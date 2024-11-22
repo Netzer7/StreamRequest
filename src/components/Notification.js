@@ -7,9 +7,11 @@ export default function Notification() {
 
   if (!notification) return null
 
+  const { type, message } = notification
+
   return (
-    <div className={`notification ${notification.type}`}>
-      {notification.message}
+    <div className={`notification ${type}`}>
+      {message}
     </div>
   )
 }

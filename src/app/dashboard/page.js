@@ -1,6 +1,7 @@
 'use client'
 
 import { useAuth } from '../context/AuthContext'
+import { useNotification } from '../context/NotificationContext'
 import { useState, useEffect } from 'react'
 import { db } from '@/lib/firebase/firebase'
 import { 
@@ -372,6 +373,7 @@ const LibraryCard = ({ item, details, isLoading, onRemove }) => {
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const { showNotification } = useNotification()
   const [requests, setRequests] = useState([])
   const [libraryItems, setLibraryItems] = useState([])
   const [confirmedUsers, setConfirmedUsers] = useState([])
@@ -382,6 +384,7 @@ export default function Dashboard() {
   const [loadingDetails, setLoadingDetails] = useState({})
   const [requestsExpanded, setRequestsExpanded] = useState(true);
   const [libraryExpanded, setLibraryExpanded] = useState(true);
+ 
 
   useEffect(() => {
     if (!user?.uid) return
@@ -512,6 +515,16 @@ export default function Dashboard() {
           addedAt: Timestamp.now(),
           expiresAt: Timestamp.fromDate(expiryDate)
         })
+
+        showNotification(
+          `${request.title} has been approved and added to your library`,
+          'success'
+        )
+      } else if (action === 'rejected') {
+        showNotification(
+          `${request.title} has been rejected`,
+          'info'
+        )
       }
   
       await updateDoc(requestRef, {
@@ -531,10 +544,14 @@ export default function Dashboard() {
       })
     } catch (error) {
       console.error('Error updating request:', error)
+      showNotification(
+        `Failed to ${action} request: ${error.message}`,
+        'error'
+      )
     }
   }
 
-  const handleRemoveLibraryItem = async (itemId) => {
+   const handleRemoveLibraryItem = async (itemId) => {
     try {
       const libraryItem = libraryItems.find(item => item.id === itemId);
       if (!libraryItem || !libraryItem.docId) {
@@ -547,10 +564,18 @@ export default function Dashboard() {
         removedAt: Timestamp.now()
       });
   
+      showNotification(
+        `${libraryItem.title} has been removed from your library`,
+        'success'
+      )
+      
       console.log('Successfully removed item:', itemId);
     } catch (error) {
       console.error('Error removing library item:', error);
-      alert(`Failed to remove item: ${error.message}`);
+      showNotification(
+        `Failed to remove item: ${error.message}`,
+        'error'
+      )
     }
   };
 
