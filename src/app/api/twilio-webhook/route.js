@@ -5,8 +5,6 @@ const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
 export async function POST(request) {
   try {
-    console.log('Received SMS webhook');
-    
     const formData = await request.formData();
     const body = Object.fromEntries(formData);
     
@@ -22,11 +20,33 @@ export async function POST(request) {
     if (messageBody === 'yes') {
       return handleRegistration(body.From);
     }
+
+    if (body.Body.toLowerCase().trim() === 'help' || body.Body.toLowerCase().trim() === 'start') {
+      return
+    }
+
+
+   // Handle deregistration
+   if (body.Body.toLowerCase().trim() === 'deregister') {
+    // Start deregistration process asynchronously
+    handleDeregistration(body.From).catch(error => 
+      console.error('Async deregistration error:', error)
+    );
+    
+
+    // Immediately return confirmation message
+    return createTwiMLResponse(
+      'You have been deregistered from StreamRequest. ' +
+      'Your account and pending requests will be removed. ' +
+      'Contact your media server administrator to register again.'
+    ); 
+  }  
     
     // Check if the message is a number (1-5)
     if (/^[1-5]$/.test(messageBody)) {
       return handleConfirmation(body.From, messageBody);
     }
+    
     
     // Handle new media request/search
     return handleMediaSearch(body.From, body.Body);
@@ -90,6 +110,84 @@ async function handleRegistration(phoneNumber) {
     return createTwiMLResponse('Registration confirmed! You can now send media requests to this number.');
   } catch (error) {
     console.error('Registration error:', error);
+    throw error;
+  }
+}
+
+async function handleDeregistration(phoneNumber) {
+  // Find the active user
+  const usersRef = adminDb.collection('users');
+  const userQuery = await usersRef
+    .where('phoneNumber', '==', phoneNumber)
+    .where('status', '==', 'active')
+    .get();
+
+  if (userQuery.empty) {
+    console.log('No active user found for deregistration:', phoneNumber);
+    return;
+  }
+
+  const batch = adminDb.batch();
+  const userDoc = userQuery.docs[0];
+  const userData = userDoc.data();
+
+  // Update user status
+  batch.update(userDoc.ref, {
+    status: 'deregistered',
+    deregisteredAt: new Date().toISOString()
+  });
+
+  // Cancel pending requests
+  const requestsRef = adminDb.collection('mediaRequests');
+  const pendingRequestsQuery = await requestsRef
+    .where('requesterPhone', '==', phoneNumber)
+    .where('status', '==', 'pending')
+    .get();
+
+  pendingRequestsQuery.docs.forEach(doc => {
+    batch.update(doc.ref, {
+      status: 'cancelled',
+      cancelledAt: new Date().toISOString(),
+      cancellationReason: 'user_deregistered'
+    });
+  });
+
+  // Remove from any pending invitations
+  const pendingUsersRef = adminDb.collection('pendingUsers');
+  const pendingQuery = await pendingUsersRef
+    .where('phoneNumber', '==', phoneNumber)
+    .where('status', '==', 'pending')
+    .get();
+
+  pendingQuery.docs.forEach(doc => {
+    batch.update(doc.ref, {
+      status: 'cancelled',
+      cancelledAt: new Date().toISOString(),
+      cancellationReason: 'user_deregistered'
+    });
+  });
+
+  // Notify admin
+  const adminId = userData.managerId;
+  if (adminId) {
+    const notificationsRef = adminDb.collection('notifications');
+    batch.create(notificationsRef.doc(), {
+      type: 'user_deregistered',
+      userId: userDoc.id,
+      managerId: adminId,
+      userPhone: phoneNumber,
+      userName: userData.nickname || 'User',
+      createdAt: new Date().toISOString(),
+      read: false
+    });
+  }
+
+  // Execute all updates
+  try {
+    await batch.commit();
+    console.log('Successfully deregistered user:', phoneNumber);
+  } catch (error) {
+    console.error('Error in batch deregistration:', error);
     throw error;
   }
 }
