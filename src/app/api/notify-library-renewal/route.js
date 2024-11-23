@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import twilio from 'twilio';
-import { db } from '@/firebase';
+import { db } from '@/lib/firebase/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
 const twilioClient = twilio(
