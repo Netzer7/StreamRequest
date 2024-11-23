@@ -105,12 +105,17 @@ const MediaRequestCard = ({ request, details, isLoading, onAction }) => {
             </div>
 
             <div className="mt-auto flex flex-col gap-2 text-sm text-gray-400">
-              <span>Requested by: {request.requesterNickname || 'User'}</span>
-              <span>{new Date(request.createdAt).toLocaleDateString()}</span>
+            <span>
+              Requested by: {request.requesterNickname || 'User'} <br></br> 
+              Requested on: {new Date(request.createdAt).toLocaleDateString()} 
+            </span>
             </div>
           </div>
 
-          <div className="flex gap-4">
+          <div style={{ 
+            display: 'flex', 
+            gap: '80px' 
+          }}>
             <button
               onClick={() => onAction(request.id, 'approved')}
               className="action-button action-button-approve"
@@ -234,8 +239,10 @@ const MediaRequestCard = ({ request, details, isLoading, onAction }) => {
         )}
 
         <div className="mt-auto flex flex-col gap-2 text-sm text-gray-400">
-          <span>Requested by: {request.requesterNickname || 'User'}</span>
-          <span>{new Date(request.createdAt).toLocaleDateString()}</span>
+        <span>
+          Requested by: {request.requesterNickname || 'User'} <br></br> 
+          Requested on: {new Date(request.createdAt).toLocaleDateString()} 
+        </span>
         </div>
 
         <div className="flex gap-6 mt-4">
@@ -347,7 +354,7 @@ const LibraryCard = ({ item, details, isLoading, onRemove }) => {
           textOverflow: 'ellipsis',
           fontSize: '14px',
           fontWeight: '500',
-          color: 'rgb(209, 213, 219)' // text-gray-300 equivalent
+          color: 'rgb(209, 213, 219)'
         }}>
           {details?.title || item.title}
         </div>
@@ -649,7 +656,6 @@ export default function Dashboard() {
   };
 
   return (
-    
     <div className="min-h-screen">
       <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
@@ -696,15 +702,15 @@ export default function Dashboard() {
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '16px',
+            gap: '4px',
             color: 'rgb(0, 160, 160)'
           }}>
             <Film size={24} style={{ flexShrink: 0 }} />
             <span style={{
               fontSize: '24px',
               fontWeight: 'bold',
-              marginRight: '16px',
-              color: 'rgb(0, 160, 160)'
+              color: 'rgb(0, 160, 160)',
+              marginRight: '8px'
             }}>
               Media Requests
             </span>
@@ -795,14 +801,14 @@ export default function Dashboard() {
     <div style={{
       display: 'flex',
       alignItems: 'center',
-      gap: '16px', // Increased spacing between elements
-      color: 'rgb(0, 160, 160)' // Using the primary color
+      gap: '4px',
+      color: 'rgb(0, 160, 160)'
     }}>
       <Archive size={24} style={{ flexShrink: 0 }} />
       <span style={{
         fontSize: '24px',
         fontWeight: 'bold',
-        marginRight: '16px',
+        marginRight: '8px',
         color: 'rgb(0, 160, 160)'
       }}>
         Media Library

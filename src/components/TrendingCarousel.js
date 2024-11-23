@@ -22,15 +22,15 @@ const TrendingCarousel = () => {
     loop: true,
     align: 'start',
     slidesToScroll: 1,
-    speed: 5, // Slower speed for smoother scrolling
-    dragFree: true, // Enables free-scrolling behavior
-    containScroll: false // Removes scroll containment
+    speed: 5, 
+    dragFree: true, 
+    containScroll: false 
   }, [
     AutoPlay({ 
       delay: 3000, 
       stopOnInteraction: false, 
       stopOnMouseEnter: true, 
-      playOnInit: true // Start playing immediately
+      playOnInit: true 
     })
   ]);
 
@@ -95,10 +95,9 @@ const TrendingCarousel = () => {
     <section className="w-full bg-gradient-to-b from-secondary/10 to-transparent overflow-hidden">
       <div className="py-20" style={{ borderTop: '1px solid rgba(74, 74, 74, 0.2)' }}>
             <h2 className="container text-4xl font-bold text-center mb-4 text-primary">Trending Now</h2>
-            <p className="container text-xl text-center mb-12 text-gray-300">
+            <p className="container text-xl text-center mb-12 text-gray-300" style={{padding: '0 0 24px 20px'}}>
             Popular movies and shows you can request
             </p>
- 
         <div className="embla" ref={emblaRef}>
           <div className="embla__container">
             {media.map((item, index) => (
@@ -108,14 +107,13 @@ const TrendingCarousel = () => {
               >
                 <div className="mx-4">
                   <div className="bg-secondary/20 rounded-m overflow-hidden shadow-lg hover:bg-secondary/30 transition-all duration-300 transform hover:-translate-y-1">
-                    
-                  <div className="h-[200px] overflow-hidden"> {/* Adjust this height value */}
-        <img 
-          src={item.posterPath} 
-          alt={item.title}
-          className="w-full h-full object-cover"
-        />
-      </div>
+                  <div className="h-[200px] overflow-hidden">
+                    <img 
+                      src={item.posterPath} 
+                      alt={item.title}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
                     <div className="p-4">
                       <h3 className="font-semibold text-lg mb-2 truncate">
                         {item.title}

@@ -77,7 +77,7 @@ const HowItWorks = () => {
     {
       number: "3",
       title: "Start Managing",
-      description: "Handle media requests with ease through your intuitive dashboard. Keep everyone happy and organized."
+      description: "Handle incoming SMS media requests with ease through your intuitive dashboard. Keep everyone happy and organized."
     }
   ];
 

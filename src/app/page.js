@@ -55,10 +55,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Instant Everything Section */}
+      {/* Service Overview */}
       <section className="py-32 overflow-hidden bg-secondary/10" style={{ borderTop: '1px solid rgba(74, 74, 74, 0.2)' }}>
       <div className="container mx-auto px-4">
-        <h2 className="text-6xl font-bold text-center mb-4">Instant Everything</h2>
+        <h2 className="text-6xl font-bold text-center mb-4">Service Overview</h2>
         <p className="text-2xl text-center mb-20 max-w-2xl mx-auto text-gray-300">
           Our SMS-based system makes requesting and managing content simple.<br></br>
           It couldn't be easier, or faster.
