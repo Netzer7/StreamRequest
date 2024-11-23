@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import twilio from 'twilio';
-import { db } from '@/lib/firebase/firebase';
+import { adminDb } from '@/firebase-admin';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 
 const twilioClient = twilio(
