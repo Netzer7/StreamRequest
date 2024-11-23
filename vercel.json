@@ -1,9 +1,6 @@
 {
     "crons": [{
       "path": "/api/cron/check-library-expiry",
-      "schedule": "0 12 * * *",
-      "headers": {
-        "authorization": "Bearer @CRON_SECRET"
-      }
+      "schedule": "0 12 * * *"
     }]
   }
