@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import twilio from 'twilio';
 import { adminDb } from '@/firebase-admin';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { Timestamp } from 'firebase-admin/firestore';
 
 const twilioClient = twilio(
   process.env.TWILIO_ACCOUNT_SID,
@@ -20,19 +20,18 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const now = adminDb.Timestamp.now();
-    const threeDaysFromNow = adminDb.Timestamp.fromDate(
+    const now = Timestamp.now();
+    const threeDaysFromNow = Timestamp.fromDate(
       new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
     );
 
-    const q = query(
-      collection(adminDb, 'library'),
-      where('status', '==', 'active'),
-      where('expiresAt', '>', now),
-      where('expiresAt', '<=', threeDaysFromNow)
-    );
+    // Using adminDb methods directly instead of query constructor
+    const snapshot = await adminDb.collection('library')
+      .where('status', '==', 'active')
+      .where('expiresAt', '>', now)
+      .where('expiresAt', '<=', threeDaysFromNow)
+      .get();
 
-    const snapshot = await getDocs(q);
     const notificationsSent = [];
     const errors = [];
 
@@ -79,10 +78,16 @@ export async function GET(request) {
       success: true,
       itemsProcessed: snapshot.size,
       notificationsSent,
-      errors: errors.length > 0 ? errors : undefined
+      errors: errors.length > 0 ? errors : undefined,
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
     console.error('Error checking library expiry:', error);
-    return NextResponse.json({ error: 'Failed to check library expiry' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Failed to check library expiry',
+      details: error.message 
+    }, { 
+      status: 500 
+    });
   }
 }
