@@ -105,10 +105,12 @@ const MediaRequestCard = ({ request, details, isLoading, onAction }) => {
             </div>
 
             <div className="mt-auto flex flex-col gap-2 text-sm text-gray-400">
+            <br></br>
             <span>
               Requested by: {request.requesterNickname || 'User'} <br></br> 
               Requested on: {new Date(request.createdAt).toLocaleDateString()} 
             </span>
+            <br></br>
             </div>
           </div>
 
@@ -238,11 +240,13 @@ const MediaRequestCard = ({ request, details, isLoading, onAction }) => {
           </div>
         )}
 
-        <div className="mt-auto flex flex-col gap-2 text-sm text-gray-400">
+        <div className="mt-auto flex flex-col gap-4 text-sm text-gray-400">
+        <br></br>
         <span>
           Requested by: {request.requesterNickname || 'User'} <br></br> 
           Requested on: {new Date(request.createdAt).toLocaleDateString()} 
         </span>
+        <br></br>
         </div>
 
         <div className="flex gap-6 mt-4">
@@ -735,6 +739,7 @@ export default function Dashboard() {
                 }
               }}
               className="action-button action-button-approve w-full flex items-center justify-center gap-2"
+              style = {{marginLeft: '20px'}}
             >
               <Check size={14} />
               Approve All {requests.length} Requests
