@@ -323,6 +323,84 @@ async function handleConfirmation(phoneNumber, message) {
   return createTwiMLResponse(`Your request for "${selectedMedia.title}" has been submitted and will be reviewed by your media server administrator.`);
 }
 
+async function handleRenewal(phoneNumber, messageBody) {
+  try {
+    // Check if user is registered
+    const usersRef = adminDb.collection('users');
+    const userQuery = await usersRef
+      .where('phoneNumber', '==', phoneNumber)
+      .where('status', '==', 'active')
+      .limit(1)
+      .get();
+
+    if (userQuery.empty) {
+      return createTwiMLResponse('You are not registered to renew media items.');
+    }
+
+    // Get the most recent expiry notification sent to this user
+    const notificationsRef = adminDb.collection('expiryNotifications');
+    const notificationQuery = await notificationsRef
+      .where('requesterPhone', '==', phoneNumber)
+      .where('status', '==', 'pending')
+      .orderBy('sentAt', 'desc')
+      .limit(1)
+      .get();
+
+    if (notificationQuery.empty) {
+      return createTwiMLResponse('No recent expiring items found. Please contact your media server administrator if you need to renew a specific item.');
+    }
+
+    const notification = notificationQuery.docs[0];
+    const notificationData = notification.data();
+    const itemId = notificationData.libraryItemId;
+
+    // Get the library item
+    const libraryRef = adminDb.collection('library');
+    const itemDoc = await libraryRef.doc(itemId).get();
+
+    if (!itemDoc.exists) {
+      return createTwiMLResponse('Item not found. Please contact your media server administrator.');
+    }
+
+    const item = itemDoc.data();
+
+    // Verify the requester is the original user
+    if (item.requesterPhone !== phoneNumber) {
+      return createTwiMLResponse('You can only renew items that you requested.');
+    }
+
+    // Check if item is still active
+    if (item.status !== 'active') {
+      return createTwiMLResponse('This item cannot be renewed as it is no longer active.');
+    }
+
+    // Calculate new expiry date (3 weeks from now)
+    const newExpiryDate = new Date();
+    newExpiryDate.setDate(newExpiryDate.getDate() + 21);
+
+    // Update the item
+    await itemDoc.ref.update({
+      expiresAt: adminDb.Timestamp.fromDate(newExpiryDate),
+      renewedAt: adminDb.Timestamp.now(),
+      renewalCount: adminDb.FieldValue.increment(1)
+    });
+
+    // Mark the notification as handled
+    await notification.ref.update({
+      status: 'renewed',
+      renewedAt: adminDb.Timestamp.now()
+    });
+
+    return createTwiMLResponse(
+      `Successfully renewed "${item.title}". New expiry date: ${newExpiryDate.toLocaleDateString()}`
+    );
+
+  } catch (error) {
+    console.error('Renewal error:', error);
+    return createTwiMLResponse('An error occurred while processing your renewal request. Please try again later.');
+  }
+}
+
 async function searchTMDB(query) {
   try {
     const response = await fetch(
