@@ -1,8 +1,8 @@
-import { AuthProvider } from './context/AuthContext'
-import { NotificationProvider } from './context/NotificationContext'
-import Navigation from '@/components/Navigation'
-import Notification from '@/components/Notification'
-import './globals.css'
+import { AuthProvider } from "./context/AuthContext";
+import { NotificationProvider } from "./context/NotificationContext";
+import Navigation from "@/components/Navigation";
+import Notification from "@/components/Notification";
+import "./globals.css";
 
 export default function RootLayout({ children }) {
   return (
@@ -17,5 +17,5 @@ export default function RootLayout({ children }) {
         </AuthProvider>
       </body>
     </html>
-  )
+  );
 }

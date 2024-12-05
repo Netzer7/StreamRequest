@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
-import { headers } from 'next/headers';
-import twilio from 'twilio';
-import { adminDb } from '@/firebase-admin';
-import { Timestamp } from 'firebase-admin/firestore';
+import { NextResponse } from "next/server";
+import { headers } from "next/headers";
+import twilio from "twilio";
+import { adminDb } from "@/firebase-admin";
+import { Timestamp } from "firebase-admin/firestore";
 
 const twilioClient = twilio(
   process.env.TWILIO_ACCOUNT_SID,
@@ -14,10 +14,10 @@ const CRON_SECRET = process.env.CRON_SECRET;
 export async function GET(request) {
   try {
     const headersList = headers();
-    const authHeader = headersList.get('authorization');
+    const authHeader = headersList.get("authorization");
 
     if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const now = Timestamp.now();
@@ -26,10 +26,11 @@ export async function GET(request) {
     );
 
     // Using adminDb methods directly instead of query constructor
-    const snapshot = await adminDb.collection('library')
-      .where('status', '==', 'active')
-      .where('expiresAt', '>', now)
-      .where('expiresAt', '<=', threeDaysFromNow)
+    const snapshot = await adminDb
+      .collection("library")
+      .where("status", "==", "active")
+      .where("expiresAt", ">", now)
+      .where("expiresAt", "<=", threeDaysFromNow)
       .get();
 
     const notificationsSent = [];
@@ -43,33 +44,33 @@ export async function GET(request) {
         );
 
         // Create notification record
-        await adminDb.collection('expiryNotifications').add({
+        await adminDb.collection("expiryNotifications").add({
           libraryItemId: doc.id,
           title: item.title,
           requesterPhone: item.requesterPhone,
           expiryDate: item.expiresAt,
-          status: 'pending',
+          status: "pending",
           sentAt: now,
-          daysUntilExpiry
+          daysUntilExpiry,
         });
 
         // Send SMS notification
         await twilioClient.messages.create({
           to: item.requesterPhone,
           from: process.env.TWILIO_PHONE_NUMBER,
-          body: `Your media "${item.title}" will expire in ${daysUntilExpiry} days. Reply RENEW to keep it for another 3 weeks.`
+          body: `Your media "${item.title}" will expire in ${daysUntilExpiry} days. Reply RENEW to keep it for another 3 weeks.`,
         });
 
         notificationsSent.push({
           id: doc.id,
           title: item.title,
-          daysUntilExpiry
+          daysUntilExpiry,
         });
       } catch (error) {
         console.error(`Error processing item ${doc.id}:`, error);
         errors.push({
           id: doc.id,
-          error: error.message
+          error: error.message,
         });
       }
     }
@@ -79,15 +80,18 @@ export async function GET(request) {
       itemsProcessed: snapshot.size,
       notificationsSent,
       errors: errors.length > 0 ? errors : undefined,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('Error checking library expiry:', error);
-    return NextResponse.json({ 
-      error: 'Failed to check library expiry',
-      details: error.message 
-    }, { 
-      status: 500 
-    });
+    console.error("Error checking library expiry:", error);
+    return NextResponse.json(
+      {
+        error: "Failed to check library expiry",
+        details: error.message,
+      },
+      {
+        status: 500,
+      }
+    );
   }
 }

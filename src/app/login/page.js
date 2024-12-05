@@ -1,50 +1,53 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { useAuth } from '@/app/context/AuthContext'
-import { useNotification } from '@/app/context/NotificationContext'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import { useState } from "react";
+import { useAuth } from "@/app/context/AuthContext";
+import { useNotification } from "@/app/context/NotificationContext";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function Login() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const { login, loginWithGoogle } = useAuth()
-  const { showNotification } = useNotification()
-  const router = useRouter()
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const { login, loginWithGoogle } = useAuth();
+  const { showNotification } = useNotification();
+  const router = useRouter();
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setError('')
+    e.preventDefault();
+    setError("");
     try {
-      await login(email, password)
-      showNotification('Logged in successfully!', 'success')
-      router.push('/dashboard')
+      await login(email, password);
+      showNotification("Logged in successfully!", "success");
+      router.push("/dashboard");
     } catch (err) {
-      setError('Failed to log in: ' + err.message)
-      showNotification('Failed to log in', 'error')
+      setError("Failed to log in: " + err.message);
+      showNotification("Failed to log in", "error");
     }
-  }
+  };
 
   const handleGoogleSignIn = async () => {
-    setError('')
+    setError("");
     try {
-      await loginWithGoogle()
-      showNotification('Signed in with Google successfully!', 'success')
-      router.push('/dashboard')
+      await loginWithGoogle();
+      showNotification("Signed in with Google successfully!", "success");
+      router.push("/dashboard");
     } catch (err) {
-      setError('Failed to sign in with Google: ' + err.message)
-      showNotification('Failed to sign in with Google', 'error')
+      setError("Failed to sign in with Google: " + err.message);
+      showNotification("Failed to sign in with Google", "error");
     }
-  }
+  };
 
   return (
     <div className="container">
-      <div className="card login-card" style={{
-        backgroundColor:  'rgba(74, 74, 74, 0.2)',
-        border: `1px solid #00a0a0`
-      }}>
+      <div
+        className="card login-card"
+        style={{
+          backgroundColor: "rgba(74, 74, 74, 0.2)",
+          border: `1px solid #00a0a0`,
+        }}
+      >
         <h1 className="card-title">Login</h1>
         {error && <p className="error">{error}</p>}
         <form onSubmit={handleSubmit} className="login-form">
@@ -68,7 +71,9 @@ export default function Login() {
               required
             />
           </div>
-          <button type="submit" className="button">Log In</button>
+          <button type="submit" className="button">
+            Log In
+          </button>
         </form>
         <div className="divider">OR</div>
         <button onClick={handleGoogleSignIn} className="button google-button">
@@ -79,5 +84,5 @@ export default function Login() {
         </p>
       </div>
     </div>
-  )
+  );
 }

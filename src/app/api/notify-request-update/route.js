@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
-import { adminDb } from '@/firebase-admin';
-import twilio from 'twilio';
+import { NextResponse } from "next/server";
+import { adminDb } from "@/firebase-admin";
+import twilio from "twilio";
 
 const client = twilio(
   process.env.TWILIO_ACCOUNT_SID,
@@ -15,7 +15,9 @@ export async function POST(request) {
     if (isBatchApproval) {
       // Handle batch approval
       const requestsSnapshot = await Promise.all(
-        requestIds.map(id => adminDb.collection('mediaRequests').doc(id).get())
+        requestIds.map((id) =>
+          adminDb.collection("mediaRequests").doc(id).get()
+        )
       );
 
       // Group requests by phone number
@@ -46,7 +48,7 @@ export async function POST(request) {
           await client.messages.create({
             body: message,
             from: process.env.TWILIO_PHONE_NUMBER,
-            to: phone
+            to: phone,
           });
         })
       );
@@ -55,35 +57,41 @@ export async function POST(request) {
     } else {
       // Handle single request (existing logic)
       const { requestId, action } = body;
-      
-      const requestDoc = await adminDb.collection('mediaRequests').doc(requestId).get();
+
+      const requestDoc = await adminDb
+        .collection("mediaRequests")
+        .doc(requestId)
+        .get();
       if (!requestDoc.exists) {
-        return NextResponse.json({ error: 'Request not found' }, { status: 404 });
+        return NextResponse.json(
+          { error: "Request not found" },
+          { status: 404 }
+        );
       }
-      
+
       const requestData = requestDoc.data();
-      
+
       let statusMessage;
-      if (action === 'approved') {
+      if (action === "approved") {
         statusMessage = `Your request for "${requestData.title}" has been approved! It will be added to the library soon.`;
-      } else if (action === 'rejected') {
+      } else if (action === "rejected") {
         statusMessage = `Your request for "${requestData.title}" has been declined. Please contact your media server administrator for more information.`;
-      } else if (action === 'expired') {
+      } else if (action === "expired") {
         statusMessage = `"${requestData.title}" has been removed from the library. Contact your media server administrator if you need it restored.`;
       }
 
       await client.messages.create({
         body: statusMessage,
         from: process.env.TWILIO_PHONE_NUMBER,
-        to: requestData.requesterPhone
+        to: requestData.requesterPhone,
       });
 
       return NextResponse.json({ success: true });
     }
   } catch (error) {
-    console.error('Error sending notification:', error);
+    console.error("Error sending notification:", error);
     return NextResponse.json(
-      { error: 'Failed to send notification' },
+      { error: "Failed to send notification" },
       { status: 500 }
     );
   }
