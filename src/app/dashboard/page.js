@@ -10,6 +10,8 @@ import {
   where, 
   onSnapshot, 
   doc, 
+  getDoc,
+  setDoc,
   updateDoc, 
   addDoc, 
   Timestamp, 
@@ -34,6 +36,7 @@ import {
   ChevronRight,
   Trash2
 } from 'lucide-react'
+import WelcomeModal from '@/components/WelcomeModal'
 
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
@@ -395,7 +398,8 @@ export default function Dashboard() {
   const [loadingDetails, setLoadingDetails] = useState({})
   const [requestsExpanded, setRequestsExpanded] = useState(true);
   const [libraryExpanded, setLibraryExpanded] = useState(true);
- 
+  const [showWelcome, setShowWelcome] = useState(false);
+
 
   useEffect(() => {
     if (!user?.uid) return
@@ -473,6 +477,30 @@ export default function Dashboard() {
 
     return () => unsubscribe()
   }, [user?.uid])
+
+  useEffect(() => {
+    const checkFirstTimeUser = async () => {
+      if (!user?.uid) return
+  
+      const userPrefsRef = doc(db, 'userPreferences', user.uid)
+      const userPrefs = await getDoc(userPrefsRef)
+  
+      if (!userPrefs.exists() || !userPrefs.data().hasSeenWelcome) {
+        setShowWelcome(true)
+        // Set the flag in Firestore
+        await setDoc(userPrefsRef, {
+          hasSeenWelcome: true,
+          updatedAt: new Date().toISOString()
+        }, { merge: true })
+      }
+    }
+  
+    checkFirstTimeUser()
+  }, [user?.uid])
+
+  const handleCloseWelcome = () => {
+    setShowWelcome(false)
+  }
 
   const fetchMediaDetails = async (tmdbId, mediaType) => {
     if (mediaDetails[tmdbId] || loadingDetails[tmdbId]) return
@@ -890,6 +918,7 @@ export default function Dashboard() {
       />
     )}
       </div>
+    {showWelcome && <WelcomeModal onClose={handleCloseWelcome} />}
     </div>
   );
 }
