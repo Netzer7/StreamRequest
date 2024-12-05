@@ -166,40 +166,48 @@ const MediaRequestCard = ({ request, details, isLoading, onAction }) => {
       overflow: 'hidden',
       display: 'flex',
       transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-      marginTop: '10px'
+      marginTop: '10px',
+      height: '320px'
     }}>
       {/* Poster on the left */}
-      {details?.posterPath ? (
-        <img
-          src={`${TMDB_IMAGE_BASE_URL}${details.posterPath}`}
-          alt={`${details.title} poster`}
-          style={{
-            width: '180px', 
-            objectFit: 'cover',
-            borderTopLeftRadius: '8px',
-            borderBottomLeftRadius: '8px',
-            flexShrink: 0 
-          }}
-          onError={(e) => {
-            e.target.src = '/placeholder-poster.jpg'
-          }}
-        />
-      ) : (
-        <div style={{
-          width: '180px', 
-          display: 'flex',
-          flexShrink: 0, 
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: 'var(--color-secondary)',
-        }}>
-          <Film size={32} className="text-gray-600" />
-        </div>
+<div style={{ 
+  width: '206px',
+  flexShrink: 0,
+  aspectRatio: '2/3',
+  borderTopLeftRadius: '8px',
+  borderBottomLeftRadius: '8px',
+  overflow: 'hidden',
+  backgroundColor: 'var(--color-secondary)'
+}}>
+  {details?.posterPath ? (
+    <img
+      src={`${TMDB_IMAGE_BASE_URL}${details.posterPath}`}
+      alt={`${details.title} poster`}
+      style={{
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover'
+      }}
+      onError={(e) => {
+        e.target.src = '/placeholder-poster.jpg'
+      }}
+    />
+  ) : (
+    <div style={{
+      width: '100%',
+      height: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }}>
+      <Film size={24} className="text-gray-600" />
+    </div>
       )}
+    </div>
 
       {/* Content next to poster */}
       <div style={{
-        padding: '24px 24px 24px 32px',
+        padding: '0px 24px 24px 20px',
         display: 'flex',
         flexDirection: 'column',
         flexGrow: 1,
