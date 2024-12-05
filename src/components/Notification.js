@@ -1,17 +1,13 @@
-'use client'
+"use client";
 
-import { useNotification } from '@/app/context/NotificationContext'
+import { useNotification } from "@/app/context/NotificationContext";
 
 export default function Notification() {
-  const { notification } = useNotification()
+  const { notification } = useNotification();
 
-  if (!notification) return null
+  if (!notification) return null;
 
-  const { type, message } = notification
+  const { type, message } = notification;
 
-  return (
-    <div className={`notification ${type}`}>
-      {message}
-    </div>
-  )
+  return <div className={`notification ${type}`}>{message}</div>;
 }
