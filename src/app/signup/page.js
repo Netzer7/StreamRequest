@@ -6,6 +6,15 @@ import { useNotification } from '@/app/context/NotificationContext'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createUserProfile } from '@/lib/firebase/firestore'
+import { 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signInWithCredential, 
+  signOut 
+} from 'firebase/auth'
+import { doc, getDoc } from 'firebase/firestore'
+import { auth, db } from '@/lib/firebase/firebase'
+
 
 export default function Signup() {
   // Form states
@@ -52,6 +61,16 @@ export default function Signup() {
       if (timer) clearInterval(timer)
     }
   }, [cooldownTime])
+
+  useEffect(() => {
+    return () => {
+      // Cleanup if user abandons sign-up after Google auth
+      if (temporaryData?.isGoogle && !phoneNumber) {
+        // Sign out if they haven't completed phone verification
+        auth.signOut().catch(console.error)
+      }
+    }
+  }, [temporaryData, phoneNumber])
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60)
@@ -134,16 +153,26 @@ export default function Signup() {
       if (!response.ok) {
         throw new Error(data.error || 'Invalid verification code')
       }
-
-      // After phone verification succeeds, create the account
+  
       let userCredential;
+  
       if (temporaryData.isGoogle) {
-        userCredential = await loginWithGoogle()
+        // Sign in with the stored Google credential
+        userCredential = await signInWithCredential(auth, temporaryData.googleCredential)
+        
+        // Check if user already exists
+        const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid))
+        if (userDoc.exists()) {
+          showNotification('Account already exists!', 'error')
+          router.push('/login')
+          return
+        }
       } else {
+        // Create new email/password account
         userCredential = await signup(temporaryData.email, temporaryData.password)
       }
-
-      // Create the user profile with verified phone
+  
+      // Create the user profile
       await createUserProfile(userCredential.user.uid, {
         email: userCredential.user.email,
         phoneNumber: phoneNumber.replace(/\D/g, ''),
@@ -156,6 +185,8 @@ export default function Signup() {
     } catch (error) {
       console.error('Account creation error:', error)
       showNotification(error.message, 'error')
+      // Sign out if there was an error
+      await signOut(auth).catch(console.error)
     } finally {
       setIsLoading(false)
     }
@@ -184,13 +215,27 @@ export default function Signup() {
   const handleGoogleSignIn = async () => {
     setError('')
     
-    // Store that we're using Google sign in
-    setTemporaryData({
-      isGoogle: true
-    })
-    
-    // Move to phone verification
-    setStage('phone')
+    try {
+      // Store the Google auth provider result without signing in
+      const provider = new GoogleAuthProvider()
+      const result = await signInWithPopup(auth, provider)
+      
+      // Immediately sign out since we don't want to create the account yet
+      await signOut(auth)
+      
+      // Store the user info for later
+      setTemporaryData({
+        isGoogle: true,
+        email: result.user.email,
+        googleCredential: GoogleAuthProvider.credentialFromResult(result)
+      })
+      
+      // Move to phone verification
+      setStage('phone')
+    } catch (error) {
+      console.error('Google sign in error:', error)
+      showNotification(error.message, 'error')
+    }
   }
 
   if (stage === 'phone') {
