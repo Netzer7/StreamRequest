@@ -1,4 +1,3 @@
-// app/api/cron/notify-pending-requests/route.js
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import twilio from "twilio";
