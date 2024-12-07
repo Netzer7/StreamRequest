@@ -27,7 +27,6 @@ export async function GET(request) {
       new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
     );
 
-    // Using adminDb methods directly instead of query constructor
     const snapshot = await adminDb
       .collection("library")
       .where("status", "==", "active")
@@ -45,50 +44,97 @@ export async function GET(request) {
       });
     }
 
+    // Group items by requester phone number
+    const itemsByUser = {};
+    snapshot.docs.forEach(doc => {
+      const item = { id: doc.id, ...doc.data() };
+      if (!itemsByUser[item.requesterPhone]) {
+        itemsByUser[item.requesterPhone] = [];
+      }
+      itemsByUser[item.requesterPhone].push(item);
+    });
+
     const notificationsSent = [];
     const errors = [];
 
-    for (const doc of snapshot.docs) {
-      try {
-        const item = doc.data();
+    // Helper function to format days text
+    const formatDaysText = (days) => {
+      return days === 1 ? "1 day" : `${days} days`;
+    };
+
+    // Helper function to format the notification message
+    const formatExpiryMessage = (items) => {
+      let messageBody = "The following items will expire soon:\n\n";
+      
+      // Sort items by expiry date
+      items.sort((a, b) => a.expiresAt.toDate() - b.expiresAt.toDate());
+      
+      // List each item with a number and days until expiry
+      items.forEach((item, index) => {
         const daysUntilExpiry = Math.ceil(
           (item.expiresAt.toDate() - now.toDate()) / (1000 * 60 * 60 * 24)
         );
+        messageBody += `${index + 1}. "${item.title}" - ${formatDaysText(daysUntilExpiry)} left\n`;
+      });
+      
+      // Add instructions for renewal and deletion
+      messageBody += "\nTo keep an item for 3 more weeks, reply:";
+      messageBody += "\nRENEW #";
+      messageBody += "\n\nTo remove an item now, reply:";
+      messageBody += "\nDELETE #";
+      messageBody += "\n\n(Replace # with the item number)";
+      
+      return messageBody;
+    };
 
-        // Create notification record
+    // Process notifications by user
+    for (const [phone, items] of Object.entries(itemsByUser)) {
+      try {
+        // Create a single notification record for all items
         await adminDb.collection("expiryNotifications").add({
-          libraryItemId: doc.id,
-          title: item.title,
-          requesterPhone: item.requesterPhone,
-          expiryDate: item.expiresAt,
+          libraryItemIds: items.map(item => item.id),
+          titles: items.map(item => item.title),
+          requesterPhone: phone,
+          expiryDates: items.map(item => item.expiresAt),
           status: "pending",
           sentAt: now,
-          daysUntilExpiry,
+          itemCount: items.length,
+          // Store the order of items for reference when processing responses
+          itemOrder: items.map(item => ({
+            id: item.id,
+            title: item.title,
+            expiresAt: item.expiresAt
+          }))
         });
 
-        // Send SMS notification
+        // Send a single formatted SMS for all items
         await twilioClient.messages.create({
-          to: item.requesterPhone,
+          to: phone,
           from: process.env.TWILIO_PHONE_NUMBER,
-          body: `Your media "${item.title}" will expire in ${daysUntilExpiry} days. Reply RENEW to keep it for another 3 weeks.`,
+          body: formatExpiryMessage(items)
         });
 
         notificationsSent.push({
-          id: doc.id,
-          title: item.title,
-          daysUntilExpiry,
+          phone,
+          itemCount: items.length,
+          items: items.map(item => ({
+            id: item.id,
+            title: item.title,
+            expiresAt: item.expiresAt
+          }))
         });
       } catch (error) {
-        console.error(`Error processing item ${doc.id}:`, error);
+        console.error(`Error processing notifications for ${phone}:`, error);
         errors.push({
-          id: doc.id,
-          error: error.message,
+          phone,
+          error: error.message
         });
       }
     }
 
     return NextResponse.json({
       success: true,
+      usersProcessed: Object.keys(itemsByUser).length,
       itemsProcessed: snapshot.size,
       notificationsSent,
       errors: errors.length > 0 ? errors : undefined,

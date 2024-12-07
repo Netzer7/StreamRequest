@@ -21,26 +21,23 @@ export async function POST(request) {
       return handleRegistration(body.From);
     }
 
-    if (
-      body.Body.toLowerCase().trim() === "help" ||
-      body.Body.toLowerCase().trim() === "start"
-    ) {
+    if (messageBody === "help" || messageBody === "start") {
       return;
     }
 
     // Handle deregistration
-    if (body.Body.toLowerCase().trim() === "deregister") {
-      // Start deregistration process asynchronously
-      handleDeregistration(body.From).catch((error) =>
-        console.error("Async deregistration error:", error)
-      );
+    if (messageBody === "deregister") {
+      return handleDeregistration(body.From);
+    }
 
-      // Immediately return confirmation message
-      return createTwiMLResponse(
-        "You have been deregistered from StreamRequest. " +
-          "Your account and pending requests will be removed. " +
-          "Contact your media server administrator to register again."
-      );
+    // Handle RENEW command
+    if (messageBody.startsWith('renew ')) {
+      return handleRenewalCommand(body.From, messageBody);
+    }
+
+    // Handle DELETE command
+    if (messageBody.startsWith('delete ')) {
+      return handleDeleteCommand(body.From, messageBody);
     }
 
     // Check if the message is a number (1-5)
@@ -195,6 +192,156 @@ async function handleDeregistration(phoneNumber) {
   }
 }
 
+async function handleRenewalCommand(phoneNumber, messageBody) {
+  try {
+    // Extract the item number from the command (e.g., "renew 2" -> "2")
+    const itemNumber = parseInt(messageBody.split(' ')[1]);
+    
+    if (isNaN(itemNumber)) {
+      return createTwiMLResponse(
+        "Please specify a valid item number (e.g., RENEW 1)"
+      );
+    }
+
+    // Get the most recent expiry notification for this user
+    const notificationsRef = adminDb.collection("expiryNotifications");
+    const notificationQuery = await notificationsRef
+      .where("requesterPhone", "==", phoneNumber)
+      .where("status", "==", "pending")
+      .orderBy("sentAt", "desc")
+      .limit(1)
+      .get();
+
+    if (notificationQuery.empty) {
+      return createTwiMLResponse(
+        "No recent expiring items found. Please wait for an expiry notification before attempting to renew."
+      );
+    }
+
+    const notification = notificationQuery.docs[0];
+    const notificationData = notification.data();
+    
+    // Verify the item number is valid
+    if (!notificationData.itemOrder || itemNumber < 1 || itemNumber > notificationData.itemOrder.length) {
+      return createTwiMLResponse(
+        `Please enter a valid item number between 1 and ${notificationData.itemOrder.length}`
+      );
+    }
+
+    // Get the selected item
+    const selectedItem = notificationData.itemOrder[itemNumber - 1];
+    
+    // Calculate new expiry date (3 weeks from now)
+    const newExpiryDate = new Date();
+    newExpiryDate.setDate(newExpiryDate.getDate() + 21);
+
+    // Update the library item
+    const libraryRef = adminDb.collection("library");
+    await libraryRef.doc(selectedItem.id).update({
+      expiresAt: adminDb.Timestamp.fromDate(newExpiryDate),
+      renewedAt: adminDb.Timestamp.now(),
+      renewalCount: adminDb.FieldValue.increment(1)
+    });
+
+    // Update the notification status for this item
+    const updatedItemOrder = [...notificationData.itemOrder];
+    updatedItemOrder[itemNumber - 1] = {
+      ...selectedItem,
+      status: 'renewed'
+    };
+
+    await notification.ref.update({
+      itemOrder: updatedItemOrder,
+      [`renewals.${selectedItem.id}`]: {
+        renewedAt: new Date().toISOString(),
+        newExpiryDate: newExpiryDate.toISOString()
+      }
+    });
+
+    return createTwiMLResponse(
+      `Successfully renewed "${selectedItem.title}". New expiry date: ${newExpiryDate.toLocaleDateString()}`
+    );
+  } catch (error) {
+    console.error("Renewal command error:", error);
+    return createTwiMLResponse(
+      "An error occurred while processing your renewal request. Please try again later."
+    );
+  }
+}
+
+async function handleDeleteCommand(phoneNumber, messageBody) {
+  try {
+    // Extract the item number from the command (e.g., "delete 2" -> "2")
+    const itemNumber = parseInt(messageBody.split(' ')[1]);
+    
+    if (isNaN(itemNumber)) {
+      return createTwiMLResponse(
+        "Please specify a valid item number (e.g., DELETE 1)"
+      );
+    }
+
+    // Get the most recent expiry notification for this user
+    const notificationsRef = adminDb.collection("expiryNotifications");
+    const notificationQuery = await notificationsRef
+      .where("requesterPhone", "==", phoneNumber)
+      .where("status", "==", "pending")
+      .orderBy("sentAt", "desc")
+      .limit(1)
+      .get();
+
+    if (notificationQuery.empty) {
+      return createTwiMLResponse(
+        "No recent expiring items found. Please wait for an expiry notification before attempting to delete."
+      );
+    }
+
+    const notification = notificationQuery.docs[0];
+    const notificationData = notification.data();
+    
+    // Verify the item number is valid
+    if (!notificationData.itemOrder || itemNumber < 1 || itemNumber > notificationData.itemOrder.length) {
+      return createTwiMLResponse(
+        `Please enter a valid item number between 1 and ${notificationData.itemOrder.length}`
+      );
+    }
+
+    // Get the selected item
+    const selectedItem = notificationData.itemOrder[itemNumber - 1];
+    
+    // Update the library item status to deleted
+    const libraryRef = adminDb.collection("library");
+    await libraryRef.doc(selectedItem.id).update({
+      status: 'deleted',
+      deletedAt: adminDb.Timestamp.now(),
+      deletedBy: 'user',
+      deletionReason: 'user_requested'
+    });
+
+    // Update the notification status for this item
+    const updatedItemOrder = [...notificationData.itemOrder];
+    updatedItemOrder[itemNumber - 1] = {
+      ...selectedItem,
+      status: 'deleted'
+    };
+
+    await notification.ref.update({
+      itemOrder: updatedItemOrder,
+      [`deletions.${selectedItem.id}`]: {
+        deletedAt: new Date().toISOString()
+      }
+    });
+
+    return createTwiMLResponse(
+      `"${selectedItem.title}" has been removed from your library.`
+    );
+  } catch (error) {
+    console.error("Delete command error:", error);
+    return createTwiMLResponse(
+      "An error occurred while processing your delete request. Please try again later."
+    );
+  }
+}
+
 async function handleMediaSearch(phoneNumber, searchQuery) {
   // First check if user is registered
   const usersRef = adminDb.collection("users");
@@ -338,95 +485,6 @@ async function handleConfirmation(phoneNumber, message) {
   return createTwiMLResponse(
     `Your request for "${selectedMedia.title}" has been submitted and will be reviewed by your media server administrator.`
   );
-}
-
-async function handleRenewal(phoneNumber, messageBody) {
-  try {
-    // Check if user is registered
-    const usersRef = adminDb.collection("users");
-    const userQuery = await usersRef
-      .where("phoneNumber", "==", phoneNumber)
-      .where("status", "==", "active")
-      .limit(1)
-      .get();
-
-    if (userQuery.empty) {
-      return createTwiMLResponse(
-        "You are not registered to renew media items."
-      );
-    }
-
-    // Get the most recent expiry notification sent to this user
-    const notificationsRef = adminDb.collection("expiryNotifications");
-    const notificationQuery = await notificationsRef
-      .where("requesterPhone", "==", phoneNumber)
-      .where("status", "==", "pending")
-      .orderBy("sentAt", "desc")
-      .limit(1)
-      .get();
-
-    if (notificationQuery.empty) {
-      return createTwiMLResponse(
-        "No recent expiring items found. Please contact your media server administrator if you need to renew a specific item."
-      );
-    }
-
-    const notification = notificationQuery.docs[0];
-    const notificationData = notification.data();
-    const itemId = notificationData.libraryItemId;
-
-    // Get the library item
-    const libraryRef = adminDb.collection("library");
-    const itemDoc = await libraryRef.doc(itemId).get();
-
-    if (!itemDoc.exists) {
-      return createTwiMLResponse(
-        "Item not found. Please contact your media server administrator."
-      );
-    }
-
-    const item = itemDoc.data();
-
-    // Verify the requester is the original user
-    if (item.requesterPhone !== phoneNumber) {
-      return createTwiMLResponse(
-        "You can only renew items that you requested."
-      );
-    }
-
-    // Check if item is still active
-    if (item.status !== "active") {
-      return createTwiMLResponse(
-        "This item cannot be renewed as it is no longer active."
-      );
-    }
-
-    // Calculate new expiry date (3 weeks from now)
-    const newExpiryDate = new Date();
-    newExpiryDate.setDate(newExpiryDate.getDate() + 21);
-
-    // Update the item
-    await itemDoc.ref.update({
-      expiresAt: adminDb.Timestamp.fromDate(newExpiryDate),
-      renewedAt: adminDb.Timestamp.now(),
-      renewalCount: adminDb.FieldValue.increment(1),
-    });
-
-    // Mark the notification as handled
-    await notification.ref.update({
-      status: "renewed",
-      renewedAt: adminDb.Timestamp.now(),
-    });
-
-    return createTwiMLResponse(
-      `Successfully renewed "${item.title}". New expiry date: ${newExpiryDate.toLocaleDateString()}`
-    );
-  } catch (error) {
-    console.error("Renewal error:", error);
-    return createTwiMLResponse(
-      "An error occurred while processing your renewal request. Please try again later."
-    );
-  }
 }
 
 async function searchTMDB(query) {
