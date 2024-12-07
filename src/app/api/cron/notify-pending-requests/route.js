@@ -1,169 +1,114 @@
-import { NextResponse } from 'next/server'
-import { db } from '@/lib/firebase/firebase'
-import { collection, query, where, getDocs } from 'firebase/firestore'
-import twilio from 'twilio'
+// app/api/cron/notify-pending-requests/route.js
+import { NextResponse } from "next/server";
+import { headers } from "next/headers";
+import twilio from "twilio";
+import { adminDb } from "@/firebase-admin";
 
-// Initialize Twilio client
 const twilioClient = twilio(
   process.env.TWILIO_ACCOUNT_SID,
   process.env.TWILIO_AUTH_TOKEN
-)
-const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER
+);
 
-export async function GET(req) {
+export async function GET(request) {
   try {
-    // Only allow requests with the correct API key
-    const authHeader = req.headers.get('authorization')
+    const headersList = headers();
+    const authHeader = headersList.get("authorization");
+
     if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return new NextResponse('Unauthorized', { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get all pending media requests
-    const mediaRequestsRef = collection(db, 'mediaRequests')
-    const q = query(
-      mediaRequestsRef,
-      where('status', '==', 'pending')
-    )
-    
-    const requestsSnapshot = await getDocs(q)
-    
-    // Group requests by managerId
-    const requestsByManager = {}
-    
-    requestsSnapshot.forEach((doc) => {
-      const request = doc.data()
-      const managerId = request.managerId
-      
+    // First, try a test query to verify adminDb connection and permissions
+    console.log("Testing adminDb connection...");
+    const testQuery = await adminDb.collection("library").limit(1).get();
+    console.log("Admin DB connection test successful");
+
+    // Now proceed with the actual notification logic
+    const snapshot = await adminDb
+      .collection("mediaRequests")
+      .where("status", "==", "pending")
+      .get();
+
+    console.log(`Found ${snapshot.size} pending requests`);
+
+    const notificationsSent = [];
+    const errors = [];
+
+    // Group requests by manager
+    const requestsByManager = {};
+    snapshot.docs.forEach((doc) => {
+      const request = doc.data();
+      const managerId = request.managerId;
       if (!requestsByManager[managerId]) {
-        requestsByManager[managerId] = []
+        requestsByManager[managerId] = [];
       }
-      requestsByManager[managerId].push(request)
-    })
-    
-    // If there are no pending requests, end early
-    if (Object.keys(requestsByManager).length === 0) {
-      return NextResponse.json({ 
-        message: 'No pending requests found',
-        notificationsSent: 0 
-      })
-    }
+      requestsByManager[managerId].push({
+        id: doc.id,
+        ...request
+      });
+    });
 
-    // Get manager phone numbers and send notifications
-    const notificationsSent = []
-    
-    for (const managerId in requestsByManager) {
-      const requests = requestsByManager[managerId]
-      
-      // Get manager's phone number from users collection
-      const usersRef = collection(db, 'users')
-      const managerQuery = query(
-        usersRef,
-        where('userId', '==', managerId),
-        where('role', '==', 'manager')
-      )
-      
-      const managerSnapshot = await getDocs(managerQuery)
-      
-      if (!managerSnapshot.empty) {
-        const managerData = managerSnapshot.docs[0].data()
-        const phoneNumber = managerData.phoneNumber
+    // Process each manager's requests
+    for (const managerId of Object.keys(requestsByManager)) {
+      try {
+        const requests = requestsByManager[managerId];
+        console.log(`Processing ${requests.length} requests for manager ${managerId}`);
+
+        // Get manager info
+        const managerDoc = await adminDb.collection("users").doc(managerId).get();
+
+        if (!managerDoc.exists) {
+          console.log(`Manager ${managerId} not found`);
+          continue;
+        }
+
+        const managerData = managerDoc.data();
         
-        // Construct message
+        // Send notification
         const message = `StreamRequest: You have ${requests.length} pending media ${
           requests.length === 1 ? 'request' : 'requests'
-        } awaiting your review. Login to your dashboard to manage them.`
-        
-        // Send SMS via Twilio
-        try {
-          await twilioClient.messages.create({
-            body: message,
-            to: phoneNumber,
-            from: twilioPhoneNumber
-          })
-          
-          notificationsSent.push({
-            managerId,
-            requestCount: requests.length,
-            success: true
-          })
-        } catch (error) {
-          console.error(`Failed to send notification to manager ${managerId}:`, error)
-          notificationsSent.push({
-            managerId,
-            requestCount: requests.length,
-            success: false,
-            error: error.message
-          })
-        }
+        } awaiting your review. Login to your dashboard to manage them.`;
+
+        await twilioClient.messages.create({
+          body: message,
+          to: managerData.phoneNumber,
+          from: process.env.TWILIO_PHONE_NUMBER
+        });
+
+        notificationsSent.push({
+          managerId,
+          requestCount: requests.length,
+          success: true
+        });
+
+      } catch (error) {
+        console.error(`Error processing manager ${managerId}:`, error);
+        errors.push({
+          managerId,
+          error: error.message
+        });
       }
     }
 
     return NextResponse.json({
-      message: 'Notifications processed',
-      notificationsSent
-    })
-  } catch (error) {
-    console.error('Error processing notifications:', error)
-    return new NextResponse('Internal Server Error', { status: 500 })
-  }
-}
-
-// Add a test endpoint to verify the notification system
-export async function POST(req) {
-  try {
-    // This endpoint is for testing only
-    if (process.env.NODE_ENV === 'production') {
-      return new NextResponse('Test endpoint not available in production', { 
-        status: 403 
-      })
-    }
-
-    // Verify test authorization
-    const authHeader = req.headers.get('authorization')
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return new NextResponse('Unauthorized', { status: 401 })
-    }
-
-    // Get the managerId from the request body
-    const { managerId } = await req.json()
-    
-    if (!managerId) {
-      return new NextResponse('Manager ID is required', { status: 400 })
-    }
-
-    // Get manager's phone number
-    const usersRef = collection(db, 'users')
-    const managerQuery = query(
-      usersRef,
-      where('userId', '==', managerId),
-      where('role', '==', 'manager')
-    )
-    
-    const managerSnapshot = await getDocs(managerQuery)
-    
-    if (managerSnapshot.empty) {
-      return new NextResponse('Manager not found', { status: 404 })
-    }
-
-    const managerData = managerSnapshot.docs[0].data()
-    const phoneNumber = managerData.phoneNumber
-
-    // Send test message
-    const message = 'StreamRequest: This is a test notification. If you receive this, your notification system is working correctly.'
-    
-    await twilioClient.messages.create({
-      body: message,
-      to: phoneNumber,
-      from: twilioPhoneNumber
-    })
-
-    return NextResponse.json({
-      message: 'Test notification sent successfully',
-      phoneNumber: phoneNumber.replace(/\d(?=\d{4})/g, '*') // Mask the phone number in response
-    })
+      success: true,
+      managersProcessed: Object.keys(requestsByManager).length,
+      notificationsSent,
+      errors: errors.length > 0 ? errors : undefined,
+      timestamp: new Date().toISOString()
+    });
 
   } catch (error) {
-    console.error('Error sending test notification:', error)
-    return new NextResponse('Internal Server Error', { status: 500 })
+    console.error("Full error:", error);
+    console.error("Error stack:", error.stack);
+    return NextResponse.json(
+      {
+        error: "Failed to process notifications",
+        details: error.message,
+        code: error.code,
+        stack: error.stack
+      },
+      { status: 500 }
+    );
   }
 }
