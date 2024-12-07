@@ -1,6 +1,9 @@
 {
-    "crons": [{
+  "crons": [
+    {
       "path": "/api/cron/check-library-expiry",
       "schedule": "0 12 * * *"
-    }]
-  }
+    },
+    { "path": "/api/notify-pending-requests", "schedule": "0 9 * * *" }
+  ]
+}
