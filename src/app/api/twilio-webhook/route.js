@@ -218,10 +218,7 @@ async function handleRenewalCommand(phoneNumber, messageBody) {
 
     const notification = notificationQuery.docs[0];
     const notificationData = notification.data();
-    
-    // Debug log to see what we're getting
-    console.log("Notification data:", notificationData);
-    
+
     if (!notificationData.itemOrder || itemNumber < 1 || itemNumber > notificationData.itemOrder.length) {
       return createTwiMLResponse(
         `Please enter a valid item number between 1 and ${notificationData.itemOrder?.length || 'N/A'}`
@@ -230,18 +227,14 @@ async function handleRenewalCommand(phoneNumber, messageBody) {
 
     const selectedItem = notificationData.itemOrder[itemNumber - 1];
     
-    // Debug log for selected item
-    console.log("Selected item:", selectedItem);
-
     // Calculate new expiry date (3 weeks from now)
-    const newExpiryDate = new Date();
-    newExpiryDate.setDate(newExpiryDate.getDate() + 21);
+    const newExpiryDate = new Date(Date.now() + (21 * 24 * 60 * 60 * 1000));
 
-    // Update the library item
+    // Update the library item using server timestamp
     const libraryRef = adminDb.collection("library");
     await libraryRef.doc(selectedItem.id).update({
-      expiresAt: adminDb.Timestamp.fromDate(newExpiryDate),
-      renewedAt: adminDb.Timestamp.now(),
+      expiresAt: newExpiryDate.toISOString(),
+      renewedAt: new Date().toISOString(),
       renewalCount: adminDb.FieldValue.increment(1)
     });
 
@@ -265,7 +258,6 @@ async function handleRenewalCommand(phoneNumber, messageBody) {
     );
   } catch (error) {
     console.error("Renewal command error:", error);
-    // Add detailed error info
     console.error("Error details:", {
       message: error.message,
       stack: error.stack,
