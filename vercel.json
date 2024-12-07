@@ -4,6 +4,6 @@
       "path": "/api/cron/check-library-expiry",
       "schedule": "0 12 * * *"
     },
-    { "path": "/api/notify-pending-requests", "schedule": "0 9 * * *" }
+    { "path": "/api/cron/notify-pending-requests", "schedule": "0 9 * * *" }
   ]
 }
