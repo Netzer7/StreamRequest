@@ -1,4 +1,3 @@
-// app/api/cron/notify-pending-requests/route.js
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import twilio from "twilio";
@@ -44,7 +43,7 @@ export async function GET(request) {
       }
       requestsByManager[managerId].push({
         id: doc.id,
-        ...request
+        ...request,
       });
     });
 
@@ -52,10 +51,15 @@ export async function GET(request) {
     for (const managerId of Object.keys(requestsByManager)) {
       try {
         const requests = requestsByManager[managerId];
-        console.log(`Processing ${requests.length} requests for manager ${managerId}`);
+        console.log(
+          `Processing ${requests.length} requests for manager ${managerId}`
+        );
 
         // Get manager info
-        const managerDoc = await adminDb.collection("users").doc(managerId).get();
+        const managerDoc = await adminDb
+          .collection("users")
+          .doc(managerId)
+          .get();
 
         if (!managerDoc.exists) {
           console.log(`Manager ${managerId} not found`);
@@ -63,29 +67,28 @@ export async function GET(request) {
         }
 
         const managerData = managerDoc.data();
-        
+
         // Send notification
         const message = `StreamRequest: You have ${requests.length} pending media ${
-          requests.length === 1 ? 'request' : 'requests'
+          requests.length === 1 ? "request" : "requests"
         } awaiting your review. Login to your dashboard to manage them.`;
 
         await twilioClient.messages.create({
           body: message,
           to: managerData.phoneNumber,
-          from: process.env.TWILIO_PHONE_NUMBER
+          from: process.env.TWILIO_PHONE_NUMBER,
         });
 
         notificationsSent.push({
           managerId,
           requestCount: requests.length,
-          success: true
+          success: true,
         });
-
       } catch (error) {
         console.error(`Error processing manager ${managerId}:`, error);
         errors.push({
           managerId,
-          error: error.message
+          error: error.message,
         });
       }
     }
@@ -95,9 +98,8 @@ export async function GET(request) {
       managersProcessed: Object.keys(requestsByManager).length,
       notificationsSent,
       errors: errors.length > 0 ? errors : undefined,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
     console.error("Full error:", error);
     console.error("Error stack:", error.stack);
@@ -106,7 +108,7 @@ export async function GET(request) {
         error: "Failed to process notifications",
         details: error.message,
         code: error.code,
-        stack: error.stack
+        stack: error.stack,
       },
       { status: 500 }
     );
