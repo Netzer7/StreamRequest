@@ -9,8 +9,72 @@ const twilioClient = twilio(
   process.env.TWILIO_AUTH_TOKEN
 );
 
-const CRON_SECRET = process.env.CRON_SECRET;
+export async function POST(request) {
+  try {
+    const headersList = headers();
+    const authHeader = headersList.get("authorization");
 
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Get the managerId from the request body
+    const { managerId } = await request.json();
+    
+    if (!managerId) {
+      return NextResponse.json(
+        { error: "Manager ID is required" }, 
+        { status: 400 }
+      );
+    }
+
+    // Get manager data directly using adminDb
+    const managerDoc = await adminDb
+      .collection("users")
+      .doc(managerId)
+      .get();
+
+    if (!managerDoc.exists) {
+      return NextResponse.json(
+        { error: "Manager not found" }, 
+        { status: 404 }
+      );
+    }
+
+    const managerData = managerDoc.data();
+    const phoneNumber = managerData.phoneNumber;
+
+    // Send test message
+    const message = 'StreamRequest: This is a test notification. If you receive this, your notification system is working correctly.';
+    
+    await twilioClient.messages.create({
+      body: message,
+      to: phoneNumber,
+      from: process.env.TWILIO_PHONE_NUMBER
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Test notification sent successfully',
+      phoneNumber: phoneNumber.replace(/\d(?=\d{4})/g, '*'), // Mask the phone number
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error("Error sending test notification:", error);
+    return NextResponse.json(
+      {
+        error: "Failed to send test notification",
+        details: error.message,
+      },
+      {
+        status: 500,
+      }
+    );
+  }
+}
+
+// The actual cron endpoint for checking pending requests
 export async function GET(request) {
   try {
     const headersList = headers();
@@ -20,73 +84,82 @@ export async function GET(request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const now = Timestamp.now();
-    const threeDaysFromNow = Timestamp.fromDate(
-      new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
-    );
-
-    // Using adminDb methods directly instead of query constructor
+    // Get all pending media requests
     const snapshot = await adminDb
-      .collection("library")
-      .where("status", "==", "active")
-      .where("expiresAt", ">", now)
-      .where("expiresAt", "<=", threeDaysFromNow)
+      .collection("mediaRequests")
+      .where("status", "==", "pending")
       .get();
+
+    // Group requests by managerId
+    const requestsByManager = {};
+    
+    snapshot.forEach((doc) => {
+      const request = doc.data();
+      const managerId = request.managerId;
+      
+      if (!requestsByManager[managerId]) {
+        requestsByManager[managerId] = [];
+      }
+      requestsByManager[managerId].push(request);
+    });
 
     const notificationsSent = [];
     const errors = [];
 
-    for (const doc of snapshot.docs) {
+    // Send notifications to each manager
+    for (const managerId in requestsByManager) {
       try {
-        const item = doc.data();
-        const daysUntilExpiry = Math.ceil(
-          (item.expiresAt.toDate() - now.toDate()) / (1000 * 60 * 60 * 24)
-        );
-
-        // Create notification record
-        await adminDb.collection("expiryNotifications").add({
-          libraryItemId: doc.id,
-          title: item.title,
-          requesterPhone: item.requesterPhone,
-          expiryDate: item.expiresAt,
-          status: "pending",
-          sentAt: now,
-          daysUntilExpiry,
-        });
-
-        // Send SMS notification
-        await twilioClient.messages.create({
-          to: item.requesterPhone,
-          from: process.env.TWILIO_PHONE_NUMBER,
-          body: `Your media "${item.title}" will expire in ${daysUntilExpiry} days. Reply RENEW to keep it for another 3 weeks.`,
-        });
-
-        notificationsSent.push({
-          id: doc.id,
-          title: item.title,
-          daysUntilExpiry,
-        });
+        const requests = requestsByManager[managerId];
+        
+        // Get manager's data
+        const managerDoc = await adminDb
+          .collection("users")
+          .doc(managerId)
+          .get();
+        
+        if (managerDoc.exists) {
+          const managerData = managerDoc.data();
+          const phoneNumber = managerData.phoneNumber;
+          
+          // Construct and send message
+          const message = `StreamRequest: You have ${requests.length} pending media ${
+            requests.length === 1 ? 'request' : 'requests'
+          } awaiting your review. Login to your dashboard to manage them.`;
+          
+          await twilioClient.messages.create({
+            body: message,
+            to: phoneNumber,
+            from: process.env.TWILIO_PHONE_NUMBER
+          });
+          
+          notificationsSent.push({
+            managerId,
+            requestCount: requests.length,
+            success: true
+          });
+        }
       } catch (error) {
-        console.error(`Error processing item ${doc.id}:`, error);
+        console.error(`Error processing manager ${managerId}:`, error);
         errors.push({
-          id: doc.id,
-          error: error.message,
+          managerId,
+          error: error.message
         });
       }
     }
 
     return NextResponse.json({
       success: true,
-      itemsProcessed: snapshot.size,
+      managersProcessed: Object.keys(requestsByManager).length,
       notificationsSent,
       errors: errors.length > 0 ? errors : undefined,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString()
     });
+
   } catch (error) {
-    console.error("Error checking library expiry:", error);
+    console.error("Error processing notifications:", error);
     return NextResponse.json(
       {
-        error: "Failed to check library expiry",
+        error: "Failed to process notifications",
         details: error.message,
       },
       {
