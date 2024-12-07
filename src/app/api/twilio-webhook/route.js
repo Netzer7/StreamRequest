@@ -194,7 +194,6 @@ async function handleDeregistration(phoneNumber) {
 
 async function handleRenewalCommand(phoneNumber, messageBody) {
   try {
-    // Extract the item number from the command (e.g., "renew 2" -> "2")
     const itemNumber = parseInt(messageBody.split(' ')[1]);
     
     if (isNaN(itemNumber)) {
@@ -203,7 +202,6 @@ async function handleRenewalCommand(phoneNumber, messageBody) {
       );
     }
 
-    // Get the most recent expiry notification for this user
     const notificationsRef = adminDb.collection("expiryNotifications");
     const notificationQuery = await notificationsRef
       .where("requesterPhone", "==", phoneNumber)
@@ -221,16 +219,20 @@ async function handleRenewalCommand(phoneNumber, messageBody) {
     const notification = notificationQuery.docs[0];
     const notificationData = notification.data();
     
-    // Verify the item number is valid
+    // Debug log to see what we're getting
+    console.log("Notification data:", notificationData);
+    
     if (!notificationData.itemOrder || itemNumber < 1 || itemNumber > notificationData.itemOrder.length) {
       return createTwiMLResponse(
-        `Please enter a valid item number between 1 and ${notificationData.itemOrder.length}`
+        `Please enter a valid item number between 1 and ${notificationData.itemOrder?.length || 'N/A'}`
       );
     }
 
-    // Get the selected item
     const selectedItem = notificationData.itemOrder[itemNumber - 1];
     
+    // Debug log for selected item
+    console.log("Selected item:", selectedItem);
+
     // Calculate new expiry date (3 weeks from now)
     const newExpiryDate = new Date();
     newExpiryDate.setDate(newExpiryDate.getDate() + 21);
@@ -263,6 +265,11 @@ async function handleRenewalCommand(phoneNumber, messageBody) {
     );
   } catch (error) {
     console.error("Renewal command error:", error);
+    // Add detailed error info
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+    });
     return createTwiMLResponse(
       "An error occurred while processing your renewal request. Please try again later."
     );
