@@ -18,6 +18,20 @@ export async function POST(request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Test adminDb connection first
+    try {
+      console.log("Testing adminDb connection...");
+      const testQuery = await adminDb.collection("mediaRequests").limit(1).get();
+      console.log("Test query successful");
+    } catch (dbError) {
+      console.error("Database connection test failed:", {
+        error: dbError.message,
+        code: dbError.code,
+        stack: dbError.stack
+      });
+      throw dbError;
+    }
+
     // Get the managerId from the request body
     const { managerId } = await request.json();
     

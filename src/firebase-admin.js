@@ -1,93 +1,30 @@
-import { NextResponse } from "next/server";
-import { headers } from "next/headers";
-import twilio from "twilio";
-import { adminDb } from "@/firebase-admin";
+import { initializeApp, getApps, cert } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
 
-const twilioClient = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
-
-export async function GET(request) {
+if (!getApps().length) {
   try {
-    const headersList = headers();
-    const authHeader = headersList.get("authorization");
-
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Get all pending media requests
-    const snapshot = await adminDb
-      .collection("mediaRequests")
-      .where("status", "==", "pending")
-      .get();
-
-    const notificationsSent = [];
-    const errors = [];
-
-    // Process each request and group by manager
-    const requestsByManager = {};
-    snapshot.forEach((doc) => {
-      const request = doc.data();
-      if (!requestsByManager[request.managerId]) {
-        requestsByManager[request.managerId] = [];
-      }
-      requestsByManager[request.managerId].push(request);
+    console.log("Initializing Firebase Admin with:", {
+      hasProjectId: !!process.env.FIREBASE_PROJECT_ID,
+      hasClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
+      hasPrivateKey: !!process.env.FIREBASE_PRIVATE_KEY,
+      projectId: process.env.FIREBASE_PROJECT_ID
     });
 
-    // Send notifications to each manager
-    for (const managerId in requestsByManager) {
-      try {
-        const requests = requestsByManager[managerId];
-        const managerDoc = await adminDb
-          .collection("users")
-          .doc(managerId)
-          .get();
-
-        if (managerDoc.exists) {
-          const managerData = managerDoc.data();
-          const message = `StreamRequest: You have ${requests.length} pending media ${
-            requests.length === 1 ? 'request' : 'requests'
-          } awaiting your review. Login to your dashboard to manage them.`;
-
-          await twilioClient.messages.create({
-            body: message,
-            to: managerData.phoneNumber,
-            from: process.env.TWILIO_PHONE_NUMBER
-          });
-
-          notificationsSent.push({
-            managerId,
-            requestCount: requests.length,
-            success: true
-          });
-        }
-      } catch (error) {
-        console.error(`Error processing manager ${managerId}:`, error);
-        errors.push({
-          managerId,
-          error: error.message
-        });
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      managersProcessed: Object.keys(requestsByManager).length,
-      notificationsSent,
-      errors: errors.length > 0 ? errors : undefined,
-      timestamp: new Date().toISOString()
+    initializeApp({
+      credential: cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      }),
+      databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com`,
     });
-
+    console.log("Firebase Admin initialized successfully");
   } catch (error) {
-    console.error("Error processing notifications:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to process notifications",
-        details: error.message,
-      },
-      { status: 500 }
-    );
+    console.error("Error initializing Firebase Admin:", error);
   }
 }
+
+const adminDb = getFirestore();
+console.log("Firebase Admin Firestore initialized:", !!adminDb);
+
+export { adminDb };
