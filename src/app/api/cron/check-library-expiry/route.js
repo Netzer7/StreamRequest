@@ -20,6 +20,8 @@ export async function GET(request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    console.log("Checking for media items expiring in the next 3 days...");
+
     const now = Timestamp.now();
     const threeDaysFromNow = Timestamp.fromDate(
       new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
@@ -32,6 +34,16 @@ export async function GET(request) {
       .where("expiresAt", ">", now)
       .where("expiresAt", "<=", threeDaysFromNow)
       .get();
+
+    if (snapshot.empty) {
+      console.log("No media items found expiring in the next 3 days");
+      return NextResponse.json({
+        success: true,
+        message: "No media items require expiry notifications at this time",
+        itemsProcessed: 0,
+        timestamp: new Date().toISOString(),
+      });
+    }
 
     const notificationsSent = [];
     const errors = [];
