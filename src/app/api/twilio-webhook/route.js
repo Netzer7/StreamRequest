@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/firebase-admin";
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 
@@ -226,16 +227,60 @@ async function handleRenewalCommand(phoneNumber, messageBody) {
     }
 
     const selectedItem = notificationData.itemOrder[itemNumber - 1];
+    console.log("Selected item from notification:", selectedItem);
+    console.log("Looking for library document with ID:", selectedItem.id);
     
+    // First try to get the library item by the ID from notification
+    const libraryRef = adminDb.collection("library");
+    let libraryDoc = await libraryRef.doc(selectedItem.id).get();
+    
+    // If not found, try to query by the id field
+    if (!libraryDoc.exists) {
+      console.log("Document not found by direct ID, trying to query by id field...");
+      const querySnapshot = await libraryRef
+        .where('id', '==', selectedItem.id)
+        .where('status', '==', 'active')
+        .limit(1)
+        .get();
+      
+      if (!querySnapshot.empty) {
+        libraryDoc = querySnapshot.docs[0];
+        console.log("Found document by id field:", libraryDoc.id);
+      }
+    }
+
+    if (!libraryDoc.exists) {
+      // Update the notification to mark this item as unavailable
+      const updatedItemOrder = [...notificationData.itemOrder];
+      updatedItemOrder[itemNumber - 1] = {
+        ...selectedItem,
+        status: 'unavailable'
+      };
+
+      await notification.ref.update({
+        itemOrder: updatedItemOrder,
+        [`errors.${selectedItem.id}`]: {
+          timestamp: Timestamp.now(),
+          error: 'item_not_found',
+          details: 'Library item no longer exists'
+        }
+      });
+
+      return createTwiMLResponse(
+        `Sorry, "${selectedItem.title}" is no longer available in the library. ` +
+        `This can happen if the item was already removed. ` +
+        `Please contact your media server administrator if you think this is a mistake.`
+      );
+    }
+
     // Calculate new expiry date (3 weeks from now)
     const newExpiryDate = new Date(Date.now() + (21 * 24 * 60 * 60 * 1000));
 
-    // Update the library item using server timestamp
-    const libraryRef = adminDb.collection("library");
-    await libraryRef.doc(selectedItem.id).update({
-      expiresAt: newExpiryDate.toISOString(),
-      renewedAt: new Date().toISOString(),
-      renewalCount: adminDb.FieldValue.increment(1)
+    // Update the library item with Timestamp
+    await libraryDoc.ref.update({
+      expiresAt: Timestamp.fromDate(newExpiryDate),
+      renewedAt: Timestamp.now(),
+      renewalCount: FieldValue.increment(1)
     });
 
     // Update the notification status for this item
@@ -248,8 +293,8 @@ async function handleRenewalCommand(phoneNumber, messageBody) {
     await notification.ref.update({
       itemOrder: updatedItemOrder,
       [`renewals.${selectedItem.id}`]: {
-        renewedAt: new Date().toISOString(),
-        newExpiryDate: newExpiryDate.toISOString()
+        renewedAt: Timestamp.now(),
+        newExpiryDate: Timestamp.fromDate(newExpiryDate)
       }
     });
 
@@ -260,7 +305,7 @@ async function handleRenewalCommand(phoneNumber, messageBody) {
     console.error("Renewal command error:", error);
     console.error("Error details:", {
       message: error.message,
-      stack: error.stack,
+      stack: error.stack
     });
     return createTwiMLResponse(
       "An error occurred while processing your renewal request. Please try again later."
@@ -270,7 +315,6 @@ async function handleRenewalCommand(phoneNumber, messageBody) {
 
 async function handleDeleteCommand(phoneNumber, messageBody) {
   try {
-    // Extract the item number from the command (e.g., "delete 2" -> "2")
     const itemNumber = parseInt(messageBody.split(' ')[1]);
     
     if (isNaN(itemNumber)) {
@@ -279,7 +323,6 @@ async function handleDeleteCommand(phoneNumber, messageBody) {
       );
     }
 
-    // Get the most recent expiry notification for this user
     const notificationsRef = adminDb.collection("expiryNotifications");
     const notificationQuery = await notificationsRef
       .where("requesterPhone", "==", phoneNumber)
@@ -297,46 +340,95 @@ async function handleDeleteCommand(phoneNumber, messageBody) {
     const notification = notificationQuery.docs[0];
     const notificationData = notification.data();
     
-    // Verify the item number is valid
     if (!notificationData.itemOrder || itemNumber < 1 || itemNumber > notificationData.itemOrder.length) {
       return createTwiMLResponse(
-        `Please enter a valid item number between 1 and ${notificationData.itemOrder.length}`
+        `Please enter a valid item number between 1 and ${notificationData.itemOrder?.length || 'N/A'}`
       );
     }
 
-    // Get the selected item
     const selectedItem = notificationData.itemOrder[itemNumber - 1];
+    console.log("Selected item from notification:", selectedItem);
+    console.log("Looking for library document with ID:", selectedItem.id);
     
-    // Update the library item status to deleted
+    // First try to get the library item by the ID from notification
     const libraryRef = adminDb.collection("library");
-    await libraryRef.doc(selectedItem.id).update({
-      status: 'deleted',
-      deletedAt: adminDb.Timestamp.now(),
-      deletedBy: 'user',
-      deletionReason: 'user_requested'
+    let libraryDoc = await libraryRef.doc(selectedItem.id).get();
+    
+    // If not found, try to query by the id field
+    if (!libraryDoc.exists) {
+      console.log("Document not found by direct ID, trying to query by id field...");
+      const querySnapshot = await libraryRef
+        .where('id', '==', selectedItem.id)
+        .where('status', '==', 'active')
+        .limit(1)
+        .get();
+      
+      if (!querySnapshot.empty) {
+        libraryDoc = querySnapshot.docs[0];
+        console.log("Found document by id field:", libraryDoc.id);
+      }
+    }
+
+    if (!libraryDoc.exists) {
+      // Update the notification to mark this item as unavailable
+      const updatedItemOrder = [...notificationData.itemOrder];
+      updatedItemOrder[itemNumber - 1] = {
+        ...selectedItem,
+        status: 'unavailable'
+      };
+
+      await notification.ref.update({
+        itemOrder: updatedItemOrder,
+        [`errors.${selectedItem.id}`]: {
+          timestamp: Timestamp.now(),
+          error: 'item_not_found',
+          details: 'Library item no longer exists'
+        }
+      });
+
+      return createTwiMLResponse(
+        `Sorry, "${selectedItem.title}" is no longer available in the library. ` +
+        `This can happen if the item was already removed. ` +
+        `Please contact your media server administrator if you think this is a mistake.`
+      );
+    }
+
+    // Set expiry date to one minute ago to mark as immediately expired
+    const expiredDate = new Date(Date.now() - 60000); // Current time minus 1 minute
+
+    // Update the library item to be expired
+    await libraryDoc.ref.update({
+      expiresAt: Timestamp.fromDate(expiredDate),
+      userRequestedExpiry: true,
+      userRequestedExpiryAt: Timestamp.now()
     });
 
     // Update the notification status for this item
     const updatedItemOrder = [...notificationData.itemOrder];
     updatedItemOrder[itemNumber - 1] = {
       ...selectedItem,
-      status: 'deleted'
+      status: 'expired_by_user'
     };
 
     await notification.ref.update({
       itemOrder: updatedItemOrder,
-      [`deletions.${selectedItem.id}`]: {
-        deletedAt: new Date().toISOString()
+      [`userExpiries.${selectedItem.id}`]: {
+        expiredAt: Timestamp.now(),
+        originalExpiryDate: selectedItem.expiresAt
       }
     });
 
     return createTwiMLResponse(
-      `"${selectedItem.title}" has been removed from your library.`
+      `"${selectedItem.title}" has been marked for removal from your library.`
     );
   } catch (error) {
     console.error("Delete command error:", error);
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack
+    });
     return createTwiMLResponse(
-      "An error occurred while processing your delete request. Please try again later."
+      "An error occurred while processing your request. Please try again later."
     );
   }
 }
